@@ -18,7 +18,7 @@ const ContactUs = () => {
             
             <div className="space-y-6">
               {[
-                { icon: Phone, title: 'Emergency Hotlines', desc: '+1 ' },
+                { icon: Phone, title: 'Emergency Hotlines', desc: '+1 (833) 844-3020' },
                 { icon: Mail, title: 'Support Email', desc: 'info@onetouchdirect.com' },
                 { icon: MapPin, title: 'Global HQ', desc: '4902 W Sligh Ave, Tampa, FL 33634' },
               ].map((item, i) => (

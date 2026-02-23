@@ -41,7 +41,7 @@ const HomePage = () => {
         }}>
           <LightRays
             raysOrigin="top-center"
-            raysColor="#38BDF8" // Color más brillante
+            raysColor="#38BDF8"
             raysSpeed={1.2}
             lightSpread={2.5}
             rayLength={3.5}
@@ -64,10 +64,22 @@ const HomePage = () => {
               transition={{ duration: 1 }}
               className="relative z-10"
             >
-              <Hero />
-              <ScheduleSupport />
-              <FAQ />
-              <ContactUs />
+              {/* SECCIÓN HOME con ID */}
+              <section id="home" className="scroll-mt-20">
+                <Hero />
+              </section>
+
+              {/* SECCIÓN SCHEDULE con ID */}
+              <section id="schedule" className="scroll-mt-20">
+                <ScheduleSupport />
+              </section>
+
+              {/* SECCIÓN CONTACT con ID */}
+              <section id="contact" className="scroll-mt-20">
+                <ContactUs />
+              </section>
+
+              {/* TermsConditions (no está en el menú, no necesita ID) */}
               <TermsConditions />
             </motion.main>
           )}

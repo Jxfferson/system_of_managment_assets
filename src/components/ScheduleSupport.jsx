@@ -51,7 +51,6 @@ const ScheduleSupport = () => {
     if (!formData.description.trim()) newErrors.description = 'Description is required';
     if (!formData.requestDate) newErrors.requestDate = 'Request Date is required';
     if (!formData.priority) newErrors.priority = 'Priority is required';
-    if (!formData.businessImpact) newErrors.businessImpact = 'Business Impact is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -253,7 +252,7 @@ const ScheduleSupport = () => {
               </div>
             </FormSection>
 
-            <FormSection index={3} title="Request Date" description="When was this request submitted?">
+            <FormSection index={3} title="Request Date & Priority" description="When was this request submitted?">
               <div className="grid md:grid-cols-1 gap-6">
                 <FormField label="Request Date" required error={errors.requestDate}>
                   <DatePicker 
@@ -264,11 +263,6 @@ const ScheduleSupport = () => {
                     className={errors.requestDate ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
                   />
                 </FormField>
-              </div>
-            </FormSection>
-
-            <FormSection index={4} title="Priority & Additional" description="Assess the impact on your operations.">
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <FormField label="Priority Level" required error={errors.priority}>
                   <Select 
                     name="priority" 
@@ -283,30 +277,7 @@ const ScheduleSupport = () => {
                     <option value="Urgent" className="bg-slate-900 text-white">Urgent - System down / Critical</option>
                   </Select>
                 </FormField>
-                <FormField label="Business Impact" required error={errors.businessImpact}>
-                  <Select 
-                    name="businessImpact" 
-                    value={formData.businessImpact} 
-                    onChange={handleChange} 
-                    className={errors.businessImpact ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
-                  >
-                    <option value="" className="bg-slate-900 text-white">Select Impact</option>
-                    <option value="No Impact" className="bg-slate-900 text-white">No Impact</option>
-                    <option value="Minor" className="bg-slate-900 text-white">Minor - Few users affected</option>
-                    <option value="Moderate" className="bg-slate-900 text-white">Moderate - Team/Department affected</option>
-                    <option value="Critical" className="bg-slate-900 text-white">Critical - Entire organization affected</option>
-                  </Select>
-                </FormField>
               </div>
-              <FormField label="Additional Notes">
-                <Textarea 
-                  name="additionalNotes" 
-                  value={formData.additionalNotes} 
-                  onChange={handleChange} 
-                  rows={2} 
-                  placeholder="Any other relevant details?" 
-                />
-              </FormField>
             </FormSection>
 
             <motion.div 

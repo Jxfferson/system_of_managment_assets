@@ -36,7 +36,7 @@ const Hero = () => {
         }} className="text-6xl md:text-8xl font-bold tracking-tight text-white mb-8 leading-[1.1]">
             IT Equipment <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 pb-2">
-              Support
+              Suppor t
             </span>
           </motion.h1>
 

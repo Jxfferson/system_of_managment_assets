@@ -20,37 +20,51 @@ const Navigation = () => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
 
+    // Modificamos las opciones del observer para mejor detección
     const observerOptions = {
       root: null,
-      rootMargin: '-40% 0px -60% 0px',
-      threshold: 0
+      rootMargin: '-20% 0px -35% 0px', // Ajustado para mejor detección
+      threshold: 0.1 // Un pequeño threshold ayuda
     };
 
     const observerCallback = entries => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) setActiveSection(entry.target.id);
+        if (entry.isIntersecting) {
+          console.log('Sección visible:', entry.target.id); // Para debug
+          setActiveSection(entry.target.id);
+        }
       });
     };
 
     const observer = new IntersectionObserver(observerCallback, observerOptions);
 
+    // Observamos todas las secciones
     navItems.forEach(item => {
       const element = document.getElementById(item.id);
-      if (element) observer.observe(element);
+      if (element) {
+        observer.observe(element);
+        console.log('Observando:', item.id); // Para debug
+      } else {
+        console.warn('Elemento no encontrado:', item.id); // Para debug
+      }
     });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
       observer.disconnect();
     };
-  }, []);
+  }, []); // Dependencias vacías
 
   const scrollToSection = sectionId => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
+      const offset = 80; // Altura del navbar
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
       });
     }
   };
