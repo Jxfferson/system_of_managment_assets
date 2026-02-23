@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useToast } from '@/components/ui/use-toast';
+import Modal from '@/components/ui/Modal';
 
 const ScheduleSupport = () => {
   const { toast } = useToast();
@@ -29,7 +30,13 @@ const ScheduleSupport = () => {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: '',
+    title: '',
+    message: '',
+    details: null
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -56,26 +63,79 @@ const ScheduleSupport = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Función para generar ID único
+  const generateRequestId = () => {
+    return 'OTD-' + Date.now().toString(36).toUpperCase() + '-' + 
+           Math.random().toString(36).substring(2, 6).toUpperCase();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!validateForm()) {
+      // Se muestra modal de error con los campos faltantes
+      const missingFields = Object.keys(errors).map(key => {
+        const fieldNames = {
+          fullName: 'Full Name',
+          identification: 'Identification',
+          email: 'Email',
+          campaign: 'Campaign',
+          deviceType: 'Device Type',
+          description: 'Description',
+          requestDate: 'Request Date',
+          priority: 'Priority'
+        };
+        return fieldNames[key] || key;
+      });
+
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Incomplete Form',
+        message: `Please fill in all required fields: ${missingFields.join(', ')}`,
+        details: null
+      });
+
+      // También mostrar toast si quieres mantenerlo
       toast({ 
         title: "Validation Error", 
         description: "Please fill in all required fields correctly.", 
         variant: "destructive" 
       });
+
       const firstError = document.querySelector('.text-red-400');
       if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+
     setIsSubmitting(true);
+    
+    // Simular envío
     setTimeout(() => {
       setIsSubmitting(false);
-      setIsSubmitted(true);
+      
+      // Generar ID de solicitud
+      const requestId = generateRequestId();
+      
+      // Mostrar modal de éxito
+      setModalState({
+        isOpen: true,
+        type: 'success',
+        title: 'Request Sent Successfully! ✓',
+        message: 'Your support request has been submitted. A confirmation email has been sent to your inbox.',
+        details: {
+          email: formData.email,
+          requestId: requestId
+        }
+      });
+
+      // También mostrar toast si quieres mantenerlo
       toast({ 
         title: "Request Sent ✓", 
         description: "Our team will contact you shortly." 
       });
+
+      // Resetear formulario después de 5 segundos
       setTimeout(() => {
         setFormData({
           fullName: '',
@@ -92,13 +152,26 @@ const ScheduleSupport = () => {
           businessImpact: '',
           additionalNotes: ''
         });
-        setIsSubmitted(false);
       }, 5000);
     }, 2000);
   };
 
+  const closeModal = () => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+  };
+
   return (
     <section id="schedule" className="py-24 px-6 relative z-10">
+      {/* Modal */}
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        type={modalState.type}
+        title={modalState.title}
+        message={modalState.message}
+        details={modalState.details}
+      />
+
       <div className="container mx-auto max-w-4xl">
         <div className="text-center mb-16">
           <motion.h2 
@@ -120,188 +193,173 @@ const ScheduleSupport = () => {
           </motion.p>
         </div>
 
-        {isSubmitted ? (
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} 
-            animate={{ scale: 1, opacity: 1 }} 
-            className="text-center py-20 bg-slate-900/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl"
-          >
-            <div className="w-24 h-24 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-12 h-12 text-cyan-400" />
+        <form onSubmit={handleSubmit} className="space-y-8">
+          
+          <FormSection index={0} title="Personal Information" description="Your contact details for this request.">
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField label="Full Name" required error={errors.fullName}>
+                <Input 
+                  name="fullName" 
+                  value={formData.fullName} 
+                  onChange={handleChange} 
+                  className={errors.fullName ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
+                  placeholder="John Doe" 
+                />
+              </FormField>
+              <FormField label="Email Address" required error={errors.email}>
+                <Input 
+                  type="email" 
+                  name="email" 
+                  value={formData.email} 
+                  onChange={handleChange} 
+                  className={errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
+                  placeholder="john@example.com" 
+                />
+              </FormField>
+              <FormField label="Identification Number" required error={errors.identification}>
+                <Input 
+                  name="identification" 
+                  value={formData.identification} 
+                  onChange={handleChange} 
+                  className={errors.identification ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
+                  placeholder="ID-12345678" 
+                />
+              </FormField>
             </div>
-            <h3 className="text-3xl font-bold text-white mb-4">Request Confirmed</h3>
-            <p className="text-slate-400 text-lg max-w-md mx-auto">
-              We've received your comprehensive support request. A specialist will be assigned to your case immediately.
-            </p>
-          </motion.div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <FormSection index={0} title="Personal Information" description="Your contact details for this request.">
-              <div className="grid md:grid-cols-2 gap-6">
-                <FormField label="Full Name" required error={errors.fullName}>
-                  <Input 
-                    name="fullName" 
-                    value={formData.fullName} 
-                    onChange={handleChange} 
-                    className={errors.fullName ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
-                    placeholder="John Doe" 
-                  />
-                </FormField>
-                <FormField label="Email Address" required error={errors.email}>
-                  <Input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email} 
-                    onChange={handleChange} 
-                    className={errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
-                    placeholder="john@example.com" 
-                  />
-                </FormField>
-                <FormField label="Identification Number" required error={errors.identification}>
-                  <Input 
-                    name="identification" 
-                    value={formData.identification} 
-                    onChange={handleChange} 
-                    className={errors.identification ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
-                    placeholder="ID-12345678" 
-                  />
-                </FormField>
-              </div>
-            </FormSection>
+          </FormSection>
 
-            <FormSection index={1} title="Campaign & Device Information" description="Details about your campaign and affected equipment.">
-              <div className="grid md:grid-cols-2 gap-6">
-                <FormField label="Campaign" required error={errors.campaign}>
-                  <Select 
-                    name="campaign" 
-                    value={formData.campaign} 
-                    onChange={handleChange} 
-                    className={errors.campaign ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
-                  >
-                    <option value="" className="bg-slate-900 text-white">Select Campaign</option>
-                    <option value="T-Mobile" className="bg-slate-900 text-white">T-Mobile</option>
-                    <option value="AT&T" className="bg-slate-900 text-white">AT&T</option>
-                    <option value="Verizon" className="bg-slate-900 text-white">Verizon</option>
-                    <option value="Sprint" className="bg-slate-900 text-white">Sprint</option>
-                    <option value="Comcast" className="bg-slate-900 text-white">Comcast</option>
-                    <option value="Charter" className="bg-slate-900 text-white">Charter</option>
-                    <option value="Cox" className="bg-slate-900 text-white">Cox</option>
-                    <option value="Spectrum" className="bg-slate-900 text-white">Spectrum</option>
-                    <option value="CenturyLink" className="bg-slate-900 text-white">CenturyLink</option>
-                    <option value="Frontier" className="bg-slate-900 text-white">Frontier</option>
-                    <option value="Other" className="bg-slate-900 text-white">Other</option>
-                  </Select>
-                </FormField>
-                <FormField label="Device Type" required error={errors.deviceType}>
-                  <Select 
-                    name="deviceType" 
-                    value={formData.deviceType} 
-                    onChange={handleChange} 
-                    className={errors.deviceType ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
-                  >
-                    <option value="" className="bg-slate-900 text-white">Select Device</option>
-                    <option value="Desktop Computer" className="bg-slate-900 text-white">Desktop Computer</option>
-                    <option value="Laptop" className="bg-slate-900 text-white">Laptop</option>
-                    <option value="Server" className="bg-slate-900 text-white">Server</option>
-                    <option value="Network Equipment" className="bg-slate-900 text-white">Network Equipment</option>
-                    <option value="Mobile Device" className="bg-slate-900 text-white">Mobile Device</option>
-                    <option value="Printer" className="bg-slate-900 text-white">Printer</option>
-                    <option value="Router" className="bg-slate-900 text-white">Router</option>
-                    <option value="Other" className="bg-slate-900 text-white">Other</option>
-                  </Select>
-                </FormField>
-                <FormField label="Device Model/Brand" error={errors.deviceModel}>
-                  <Input 
-                    name="deviceModel" 
-                    value={formData.deviceModel} 
-                    onChange={handleChange} 
-                    placeholder="e.g. Dell XPS, MacBook Pro" 
-                  />
-                </FormField>
-                <FormField label="Serial Number/Asset ID" helpText="Optional, but helps speed up diagnostics.">
-                  <Input 
-                    name="serialNumber" 
-                    value={formData.serialNumber} 
-                    onChange={handleChange} 
-                    placeholder="e.g. ABC123XYZ" 
-                  />
-                </FormField>
-              </div>
-            </FormSection>
+          <FormSection index={1} title="Campaign & Device Information" description="Details about your campaign and affected equipment.">
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField label="Campaign" required error={errors.campaign}>
+                <Select 
+                  name="campaign" 
+                  value={formData.campaign} 
+                  onChange={handleChange} 
+                  className={errors.campaign ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
+                >
+                  <option value="" className="bg-slate-900 text-white">Select Campaign</option>
+                  <option value="T-Mobile" className="bg-slate-900 text-white">T-Mobile</option>
+                  <option value="AT&T" className="bg-slate-900 text-white">AT&T</option>
+                  <option value="Verizon" className="bg-slate-900 text-white">Verizon</option>
+                  <option value="Sprint" className="bg-slate-900 text-white">Sprint</option>
+                  <option value="Comcast" className="bg-slate-900 text-white">Comcast</option>
+                  <option value="Charter" className="bg-slate-900 text-white">Charter</option>
+                  <option value="Cox" className="bg-slate-900 text-white">Cox</option>
+                  <option value="Spectrum" className="bg-slate-900 text-white">Spectrum</option>
+                  <option value="CenturyLink" className="bg-slate-900 text-white">CenturyLink</option>
+                  <option value="Frontier" className="bg-slate-900 text-white">Frontier</option>
+                  <option value="Other" className="bg-slate-900 text-white">Other</option>
+                </Select>
+              </FormField>
+              <FormField label="Device Type" required error={errors.deviceType}>
+                <Select 
+                  name="deviceType" 
+                  value={formData.deviceType} 
+                  onChange={handleChange} 
+                  className={errors.deviceType ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
+                >
+                  <option value="" className="bg-slate-900 text-white">Select Device</option>
+                  <option value="Desktop Computer" className="bg-slate-900 text-white">Desktop Computer</option>
+                  <option value="Laptop" className="bg-slate-900 text-white">Laptop</option>
+                  <option value="Server" className="bg-slate-900 text-white">Server</option>
+                  <option value="Network Equipment" className="bg-slate-900 text-white">Network Equipment</option>
+                  <option value="Mobile Device" className="bg-slate-900 text-white">Mobile Device</option>
+                  <option value="Printer" className="bg-slate-900 text-white">Printer</option>
+                  <option value="Router" className="bg-slate-900 text-white">Router</option>
+                  <option value="Other" className="bg-slate-900 text-white">Other</option>
+                </Select>
+              </FormField>
+              <FormField label="Device Model/Brand" error={errors.deviceModel}>
+                <Input 
+                  name="deviceModel" 
+                  value={formData.deviceModel} 
+                  onChange={handleChange} 
+                  placeholder="e.g. Dell XPS, MacBook Pro" 
+                />
+              </FormField>
+              <FormField label="Serial Number/Asset ID" helpText="Optional, but helps speed up diagnostics.">
+                <Input 
+                  name="serialNumber" 
+                  value={formData.serialNumber} 
+                  onChange={handleChange} 
+                  placeholder="e.g. ABC123XYZ" 
+                />
+              </FormField>
+            </div>
+          </FormSection>
 
-            <FormSection index={2} title="Issue Details" description="Describe the problem you're experiencing.">
-              <div className="space-y-6">
-                <FormField label="Detailed Description" required error={errors.description}>
-                  <Textarea 
-                    name="description" 
-                    value={formData.description} 
-                    onChange={handleChange} 
-                    rows={4} 
-                    className={errors.description ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
-                    placeholder="Please provide as much detail as possible..." 
-                  />
-                </FormField>
-                <FormField label="Affected Services/Systems">
-                  <Input 
-                    name="affectedServices" 
-                    value={formData.affectedServices} 
-                    onChange={handleChange} 
-                    placeholder="e.g. Email, Internal CRM, Wi-Fi" 
-                  />
-                </FormField>
-              </div>
-            </FormSection>
+          <FormSection index={2} title="Issue Details" description="Describe the problem you're experiencing.">
+            <div className="space-y-6">
+              <FormField label="Detailed Description" required error={errors.description}>
+                <Textarea 
+                  name="description" 
+                  value={formData.description} 
+                  onChange={handleChange} 
+                  rows={4} 
+                  className={errors.description ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
+                  placeholder="Please provide as much detail as possible..." 
+                />
+              </FormField>
+              <FormField label="Affected Services/Systems">
+                <Input 
+                  name="affectedServices" 
+                  value={formData.affectedServices} 
+                  onChange={handleChange} 
+                  placeholder="e.g. Email, Internal CRM, Wi-Fi" 
+                />
+              </FormField>
+            </div>
+          </FormSection>
 
-            <FormSection index={3} title="Request Date & Priority" description="When was this request submitted?">
-              <div className="grid md:grid-cols-1 gap-6">
-                <FormField label="Request Date" required error={errors.requestDate}>
-                  <DatePicker 
-                    name="requestDate" 
-                    value={formData.requestDate} 
-                    onChange={handleChange} 
-                    max={new Date().toISOString().split('T')[0]} 
-                    className={errors.requestDate ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
-                  />
-                </FormField>
-                <FormField label="Priority Level" required error={errors.priority}>
-                  <Select 
-                    name="priority" 
-                    value={formData.priority} 
-                    onChange={handleChange} 
-                    className={errors.priority ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
-                  >
-                    <option value="" className="bg-slate-900 text-white">Select Priority</option>
-                    <option value="Low" className="bg-slate-900 text-white">Low - No rush</option>
-                    <option value="Medium" className="bg-slate-900 text-white">Medium - Affecting some work</option>
-                    <option value="High" className="bg-slate-900 text-white">High - Blocking significant work</option>
-                    <option value="Urgent" className="bg-slate-900 text-white">Urgent - System down / Critical</option>
-                  </Select>
-                </FormField>
-              </div>
-            </FormSection>
+          <FormSection index={3} title="Request Date & Priority" description="When was this request submitted?">
+            <div className="grid md:grid-cols-1 gap-6">
+              <FormField label="Request Date" required error={errors.requestDate}>
+                <DatePicker 
+                  name="requestDate" 
+                  value={formData.requestDate} 
+                  onChange={handleChange} 
+                  max={new Date().toISOString().split('T')[0]} 
+                  className={errors.requestDate ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''} 
+                />
+              </FormField>
+              <FormField label="Priority Level" required error={errors.priority}>
+                <Select 
+                  name="priority" 
+                  value={formData.priority} 
+                  onChange={handleChange} 
+                  className={errors.priority ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
+                >
+                  <option value="" className="bg-slate-900 text-white">Select Priority</option>
+                  <option value="Low" className="bg-slate-900 text-white">Low - No rush</option>
+                  <option value="Medium" className="bg-slate-900 text-white">Medium - Affecting some work</option>
+                  <option value="High" className="bg-slate-900 text-white">High - Blocking significant work</option>
+                  <option value="Urgent" className="bg-slate-900 text-white">Urgent - System down / Critical</option>
+                </Select>
+              </FormField>
+            </div>
+          </FormSection>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} 
-              whileInView={{ opacity: 1, y: 0 }} 
-              viewport={{ once: true }} 
-              className="pt-4"
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            whileInView={{ opacity: 1, y: 0 }} 
+            viewport={{ once: true }} 
+            className="pt-4"
+          >
+            <button 
+              type="submit" 
+              disabled={isSubmitting} 
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-5 rounded-2xl font-bold text-xl transition-all duration-300 hover:shadow-[0_0_40px_rgba(34,211,238,0.5)] hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
-              <button 
-                type="submit" 
-                disabled={isSubmitting} 
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-5 rounded-2xl font-bold text-xl transition-all duration-300 hover:shadow-[0_0_40px_rgba(34,211,238,0.5)] hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-              >
-                {isSubmitting ? (
-                  <span className="animate-pulse">Submitting Request...</span>
-                ) : (
-                  <>
-                    <Send className="w-6 h-6" /> Submit Support Request
-                  </>
-                )}
-              </button>
-            </motion.div>
-          </form>
-        )}
+              {isSubmitting ? (
+                <span className="animate-pulse">Submitting Request...</span>
+              ) : (
+                <>
+                  <Send className="w-6 h-6" /> Submit Support Request
+                </>
+              )}
+            </button>
+          </motion.div>
+        </form>
       </div>
     </section>
   );
