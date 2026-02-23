@@ -4,7 +4,6 @@ import { AnimatePresence } from 'framer-motion';
 import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import SplashScreen from './components/SplashScreen';
-import CustomCursor from './components/CustomCursor';
 import { Toaster } from '@/components/ui/toaster';
 
 function App() {
@@ -13,9 +12,6 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
-      
-      {/* Global Custom Cursor */}
-      <CustomCursor />
 
       {/* Splash Screen Overlay */}
       <AnimatePresence>

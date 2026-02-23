@@ -5,7 +5,7 @@ const SplashScreen = ({ onComplete }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete();
-    }, 2800); // 2.8 seconds total duration before unmounting
+    }, 2800);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -16,7 +16,6 @@ const SplashScreen = ({ onComplete }) => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8, ease: "easeInOut" }}
     >
-      {/* Animated Background Orbs */}
       <motion.div
         className="absolute w-[40vw] h-[40vw] rounded-full bg-[#0EA5E9]/20 blur-[100px]"
         initial={{ scale: 0.8, opacity: 0, x: -100 }}
@@ -30,7 +29,6 @@ const SplashScreen = ({ onComplete }) => {
         transition={{ duration: 2.5, ease: "easeOut" }}
       />
 
-      {/* Main Branding Text */}
       <motion.div
         className="relative z-10 flex flex-col items-center"
         initial={{ opacity: 0, y: 20 }}

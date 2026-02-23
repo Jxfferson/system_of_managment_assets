@@ -13,7 +13,6 @@ const GlassCard = ({ children, className, hover = true, ...props }) => {
       )}
       {...props}
     >
-      {/* Subtle inner top highlight */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       {children}
     </motion.div>

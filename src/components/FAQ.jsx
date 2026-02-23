@@ -7,20 +7,11 @@ const FAQ = () => {
   const [openIndex, setOpenIndex] = useState(null);
 
   const faqs = [
-    { question: 'What types of technical support do you provide?', answer: 'We offer comprehensive enterprise IT support including software troubleshooting, network configuration, security audits, server maintenance, and cloud infrastructure management.' },
-    { question: 'What is your guaranteed response time?', answer: 'For critical Priority 1 issues, we guarantee a 15-minute response time. Standard requests are addressed within 2 hours during normal business operations.' },
-    { question: 'Do you offer remote support?', answer: 'Yes, 95% of our support is handled securely via remote access, enabling faster resolution times. On-site dispatch is available for hardware failures.' },
-    { question: 'How do you ensure data security?', answer: 'We use military-grade AES-256 encryption, MFA, and strict Zero Trust access protocols. All our engineers are certified and undergo regular security clearances.' },
-  ];
+];
 
   return (
-    <section id="help" className="py-24 px-6 relative">
+    <section id="help" className="">
       <div className="container mx-auto max-w-3xl">
-        <div className="text-center mb-16">
-          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Common <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Inquiries</span>
-          </motion.h2>
-        </div>
 
         <div className="space-y-4">
           {faqs.map((faq, index) => (
@@ -34,15 +25,6 @@ const FAQ = () => {
                     {openIndex === index ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                   </div>
                 </button>
-                <AnimatePresence>
-                  {openIndex === index && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
-                      <div className="px-6 pb-6 text-slate-300 leading-relaxed border-t border-white/5 pt-4">
-                        {faq.answer}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </GlassCard>
             </motion.div>
           ))}

@@ -1,47 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
 const Navigation = () => {
   const [activeSection, setActiveSection] = useState('home');
   const [scrolled, setScrolled] = useState(false);
+
   const navItems = [{
     id: 'home',
     label: 'Home'
   }, {
     id: 'schedule',
     label: 'Schedule'
-  }, {
-    id: 'help',
-    label: 'FAQ'
-  }, {
+  },{
     id: 'contact',
     label: 'Contact'
-  }, {
-    id: 'terms',
-    label: 'Terms'
   }];
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
+
     const observerOptions = {
       root: null,
       rootMargin: '-40% 0px -60% 0px',
       threshold: 0
     };
+
     const observerCallback = entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) setActiveSection(entry.target.id);
       });
     };
+
     const observer = new IntersectionObserver(observerCallback, observerOptions);
+
     navItems.forEach(item => {
       const element = document.getElementById(item.id);
       if (element) observer.observe(element);
     });
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       observer.disconnect();
     };
   }, []);
+
   const scrollToSection = sectionId => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -51,45 +54,76 @@ const Navigation = () => {
       });
     }
   };
-  return <motion.nav initial={{
-    y: -100,
-    opacity: 0
-  }} animate={{
-    y: 0,
-    opacity: 1
-  }} transition={{
-    duration: 0.8,
-    ease: [0.16, 1, 0.3, 1]
-  }} className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'py-3 bg-[#0B1120]/80 backdrop-blur-xl border-b border-white/5 shadow-2xl' : 'py-6 bg-transparent'}`}>
+
+  return (
+    <motion.nav 
+      initial={{
+        y: -100,
+        opacity: 0
+      }} 
+      animate={{
+        y: 0,
+        opacity: 1
+      }} 
+      transition={{
+        duration: 0.8,
+        ease: [0.16, 1, 0.3, 1]
+      }} 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled 
+          ? 'py-3 bg-[#0B1120]/80 backdrop-blur-xl shadow-2xl' 
+          : 'py-6 bg-transparent'
+      }`}
+    >
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between">
-          <motion.div whileHover={{
-          scale: 1.05
-        }} className="text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2" onClick={() => scrollToSection('home')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.5)]">
-              <span className="text-sm">OTD</span>
-            </div>
-            Tech<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Support</span>
+          <motion.div 
+            whileHover={{
+              scale: 1.05
+            }} 
+            className="text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2" 
+            onClick={() => scrollToSection('home')}
+          >
+            OTD
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+              Support
+            </span>
           </motion.div>
 
           <ul className="hidden md:flex items-center space-x-2 bg-slate-900/50 backdrop-blur-md px-2 py-1.5 rounded-full border border-white/5">
-            {navItems.map(item => <li key={item.id}>
-                <button onClick={() => scrollToSection(item.id)} className={`relative px-5 py-2 text-sm font-medium transition-colors rounded-full ${activeSection === item.id ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
+            {navItems.map(item => (
+              <li key={item.id}>
+                <button 
+                  onClick={() => scrollToSection(item.id)} 
+                  className={`relative px-5 py-2 text-sm font-medium transition-colors rounded-full ${
+                    activeSection === item.id 
+                      ? 'text-white' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
                   <span className="relative z-10">{item.label}</span>
-                  {activeSection === item.id && <motion.div layoutId="nav-pill" className="absolute inset-0 bg-white/10 rounded-full" transition={{
-                type: "spring",
-                bounce: 0.2,
-                duration: 0.6
-              }} />}
+                  {activeSection === item.id && (
+                    <motion.div 
+                      layoutId="nav-pill" 
+                      className="absolute inset-0 bg-white/10 rounded-full" 
+                      transition={{
+                        type: "spring",
+                        bounce: 0.2,
+                        duration: 0.6
+                      }} 
+                    />
+                  )}
                 </button>
-              </li>)}
+              </li>
+            ))}
           </ul>
 
-          <button className="hidden md:block px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:scale-105" onClick={() => scrollToSection('schedule')}>
+          <button 
+            className="hidden md:block px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:scale-105" 
+            onClick={() => scrollToSection('schedule')}
+          >
             Get Support
           </button>
-
-          {/* Mobile menu button */}
           <button className="md:hidden text-white p-2">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -97,6 +131,8 @@ const Navigation = () => {
           </button>
         </div>
       </div>
-    </motion.nav>;
+    </motion.nav>
+  );
 };
+
 export default Navigation;

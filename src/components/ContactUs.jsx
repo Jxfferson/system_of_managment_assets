@@ -13,14 +13,14 @@ const ContactUs = () => {
               Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Connect?</span>
             </h2>
             <p className="text-slate-400 text-lg mb-10 leading-relaxed">
-              Our enterprise support team is available 24/7. Reach out directly or submit a request and a specialist will be assigned to your case immediately.
+              Our support team is available 24/7 to help you with your issues. Contact us directly or submit a request, and we'll get back to you as soon as possible.
             </p>
             
             <div className="space-y-6">
               {[
-                { icon: Phone, title: 'Emergency Hotlines', desc: '+1 (800) 123-4567\n+1 (800) 987-6543' },
-                { icon: Mail, title: 'Support Email', desc: 'support@techsolutions.enterprise' },
-                { icon: MapPin, title: 'Global HQ', desc: 'Silicon Valley, CA\nLondon, UK | Tokyo, UK' },
+                { icon: Phone, title: 'Emergency Hotlines', desc: '+1 ' },
+                { icon: Mail, title: 'Support Email', desc: 'info@onetouchdirect.com' },
+                { icon: MapPin, title: 'Global HQ', desc: '4902 W Sligh Ave, Tampa, FL 33634' },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-5">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
