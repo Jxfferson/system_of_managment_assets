@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import AnimatedBackground from '@/components/AnimatedBackground';
-import Navigation from '@/components/Navigation';
 import Hero from '@/components/Hero';
 import ScheduleSupport from '@/components/ScheduleSupport';
-import FAQ from '@/components/FAQ';
-import ContactUs from '@/components/ContactUs';
-import TermsConditions from '@/components/TermsConditions';
-import LightRays from '@/components/LightRays';
+import LoadingAnimation from '@/components/LoadingAnimation';
+
+// Lazy load secciones no críticas
+const ContactUs = lazy(() => import('@/components/ContactUs'));
+const TermsConditions = lazy(() => import('@/components/TermsConditions'));
 
 const HomePage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -25,80 +24,34 @@ const HomePage = () => {
         <link rel="icon" href="../images/onetouch.png" />
       </Helmet>
 
-      <div className="min-h-screen bg-[#0B1120] text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
-        <AnimatedBackground />
-        
-        {/* LightRays - Versión más luminosa */}
-        <div style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          width: '100%', 
-          height: '100%', 
-          zIndex: 2,
-          pointerEvents: 'none',
-          opacity: 0.9
-        }}>
-          <LightRays
-            raysOrigin="top-center"
-            raysColor="#38BDF8"
-            raysSpeed={1.2}
-            lightSpread={2.5}
-            rayLength={3.5}
-            followMouse={true}
-            mouseInfluence={0.25}
-            noiseAmount={0.08}
-            distortion={0.5}
-            fadeDistance={1.5}
-            saturation={1.2}
-          />
-        </div>
+      <AnimatePresence>
+        {isLoaded && (
+          <motion.main 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ duration: 1 }}
+            className="relative z-10"
+          >
+            <section id="home" className="scroll-mt-20">
+              <Hero />
+            </section>
 
-        <Navigation />
-        
-        <AnimatePresence>
-          {isLoaded && (
-            <motion.main 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              transition={{ duration: 1 }}
-              className="relative z-10"
-            >
-              {/* SECCIÓN HOME con ID */}
-              <section id="home" className="scroll-mt-20">
-                <Hero />
-              </section>
+            <section id="schedule" className="scroll-mt-20">
+              <ScheduleSupport />
+            </section>
 
-              {/* SECCIÓN SCHEDULE con ID */}
-              <section id="schedule" className="scroll-mt-20">
-                <ScheduleSupport />
-              </section>
-
-              {/* SECCIÓN CONTACT con ID */}
-              <section id="contact" className="scroll-mt-20">
+            <section id="contact" className="scroll-mt-20">
+              <Suspense fallback={<div className="h-96 flex items-center justify-center bg-[#0B1120]"><LoadingAnimation /></div>}>
                 <ContactUs />
-              </section>
+              </Suspense>
+            </section>
 
-              {/* TermsConditions (no está en el menú, no necesita ID) */}
+            <Suspense fallback={<div className="bg-[#0B1120]" />}>
               <TermsConditions />
-            </motion.main>
-          )}
-        </AnimatePresence>
-
-        {/* Footer */}
-        <footer className="relative z-10 border-t border-white/10 bg-[#0B1120]/80 backdrop-blur-xl pt-16 pb-8">
-          <div className="container mx-auto px-6 text-center">
-            <div className="inline-flex items-center gap-2 text-xl font-bold text-white mb-6">
-              <div className="w-6 h-6 rounded bg-gradient-to-br" />
-              OTD Support
-            </div>
-            <p className="text-slate-500 text-sm">
-              © 2026 OTD Support. All rights reserved.<br/>
-              Enterprise-Grade IT Infrastructure Management.
-            </p>
-          </div>
-        </footer>
-      </div>
+            </Suspense>
+          </motion.main>
+        )}
+      </AnimatePresence>
     </>
   );
 };

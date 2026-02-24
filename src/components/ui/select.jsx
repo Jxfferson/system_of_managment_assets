@@ -6,10 +6,7 @@ const Select = React.forwardRef(({ className, children, ...props }, ref) => {
   return (
     <div className="relative w-full">
       <select
-        className={cn(
-          'input-premium appearance-none pr-10 cursor-pointer',
-          className
-        )}
+        className={cn('input-premium appearance-none pr-10 cursor-pointer', className)}
         ref={ref}
         {...props}
       >

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const LoadingAnimation = () => {
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-center bg-[#0B1120] w-full h-full">
       <motion.div
         className="relative w-16 h-16"
         animate={{ rotate: 360 }}

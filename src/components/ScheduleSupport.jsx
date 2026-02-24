@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import FormSection from '@/components/FormSection';
 import FormField from '@/components/FormField';
 import { Input } from '@/components/ui/input';
@@ -38,13 +38,13 @@ const ScheduleSupport = () => {
     details: null
   });
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
-  };
+  }, [errors]);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors = {};
     if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
     if (!formData.identification.trim()) newErrors.identification = 'Identification Number is required';
@@ -61,19 +61,17 @@ const ScheduleSupport = () => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
 
-  // Función para generar ID único
-  const generateRequestId = () => {
+  const generateRequestId = useCallback(() => {
     return 'OTD-' + Date.now().toString(36).toUpperCase() + '-' + 
            Math.random().toString(36).substring(2, 6).toUpperCase();
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      // Se muestra modal de error con los campos faltantes
       const missingFields = Object.keys(errors).map(key => {
         const fieldNames = {
           fullName: 'Full Name',
@@ -96,7 +94,6 @@ const ScheduleSupport = () => {
         details: null
       });
 
-      // También mostrar toast si quieres mantenerlo
       toast({ 
         title: "Validation Error", 
         description: "Please fill in all required fields correctly.", 
@@ -110,14 +107,11 @@ const ScheduleSupport = () => {
 
     setIsSubmitting(true);
     
-    // Simular envío
     setTimeout(() => {
       setIsSubmitting(false);
       
-      // Generar ID de solicitud
       const requestId = generateRequestId();
       
-      // Mostrar modal de éxito
       setModalState({
         isOpen: true,
         type: 'success',
@@ -129,13 +123,11 @@ const ScheduleSupport = () => {
         }
       });
 
-      // También mostrar toast si quieres mantenerlo
       toast({ 
         title: "Request Sent ✓", 
         description: "Our team will contact you shortly." 
       });
 
-      // Resetear formulario después de 5 segundos
       setTimeout(() => {
         setFormData({
           fullName: '',
@@ -154,15 +146,14 @@ const ScheduleSupport = () => {
         });
       }, 5000);
     }, 2000);
-  };
+  }, [formData, errors, validateForm, generateRequestId, toast]);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setModalState(prev => ({ ...prev, isOpen: false }));
-  };
+  }, []);
 
   return (
     <section id="schedule" className="py-24 px-6 relative z-10">
-      {/* Modal */}
       <Modal
         isOpen={modalState.isOpen}
         onClose={closeModal}
@@ -237,18 +228,18 @@ const ScheduleSupport = () => {
                   onChange={handleChange} 
                   className={errors.campaign ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
                 >
-                  <option value="" className="bg-slate-900 text-white">Select Campaign</option>
-                  <option value="T-Mobile" className="bg-slate-900 text-white">T-Mobile</option>
-                  <option value="AT&T" className="bg-slate-900 text-white">AT&T</option>
-                  <option value="Verizon" className="bg-slate-900 text-white">Verizon</option>
-                  <option value="Sprint" className="bg-slate-900 text-white">Sprint</option>
-                  <option value="Comcast" className="bg-slate-900 text-white">Comcast</option>
-                  <option value="Charter" className="bg-slate-900 text-white">Charter</option>
-                  <option value="Cox" className="bg-slate-900 text-white">Cox</option>
-                  <option value="Spectrum" className="bg-slate-900 text-white">Spectrum</option>
-                  <option value="CenturyLink" className="bg-slate-900 text-white">CenturyLink</option>
-                  <option value="Frontier" className="bg-slate-900 text-white">Frontier</option>
-                  <option value="Other" className="bg-slate-900 text-white">Other</option>
+                  <option value="">Select Campaign</option>
+                  <option value="T-Mobile">T-Mobile</option>
+                  <option value="AT&T">AT&T</option>
+                  <option value="Verizon">Verizon</option>
+                  <option value="Sprint">Sprint</option>
+                  <option value="Comcast">Comcast</option>
+                  <option value="Charter">Charter</option>
+                  <option value="Cox">Cox</option>
+                  <option value="Spectrum">Spectrum</option>
+                  <option value="CenturyLink">CenturyLink</option>
+                  <option value="Frontier">Frontier</option>
+                  <option value="Other">Other</option>
                 </Select>
               </FormField>
               <FormField label="Device Type" required error={errors.deviceType}>
@@ -258,15 +249,15 @@ const ScheduleSupport = () => {
                   onChange={handleChange} 
                   className={errors.deviceType ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
                 >
-                  <option value="" className="bg-slate-900 text-white">Select Device</option>
-                  <option value="Desktop Computer" className="bg-slate-900 text-white">Desktop Computer</option>
-                  <option value="Laptop" className="bg-slate-900 text-white">Laptop</option>
-                  <option value="Server" className="bg-slate-900 text-white">Server</option>
-                  <option value="Network Equipment" className="bg-slate-900 text-white">Network Equipment</option>
-                  <option value="Mobile Device" className="bg-slate-900 text-white">Mobile Device</option>
-                  <option value="Printer" className="bg-slate-900 text-white">Printer</option>
-                  <option value="Router" className="bg-slate-900 text-white">Router</option>
-                  <option value="Other" className="bg-slate-900 text-white">Other</option>
+                  <option value="">Select Device</option>
+                  <option value="Desktop Computer">Desktop Computer</option>
+                  <option value="Laptop">Laptop</option>
+                  <option value="Server">Server</option>
+                  <option value="Network Equipment">Network Equipment</option>
+                  <option value="Mobile Device">Mobile Device</option>
+                  <option value="Printer">Printer</option>
+                  <option value="Router">Router</option>
+                  <option value="Other">Other</option>
                 </Select>
               </FormField>
               <FormField label="Device Model/Brand" error={errors.deviceModel}>
@@ -329,11 +320,11 @@ const ScheduleSupport = () => {
                   onChange={handleChange} 
                   className={errors.priority ? 'border-red-400 focus:border-red-400 focus:ring-red-400 focus:shadow-[0_0_20px_rgba(248,113,113,0.3)]' : ''}
                 >
-                  <option value="" className="bg-slate-900 text-white">Select Priority</option>
-                  <option value="Low" className="bg-slate-900 text-white">Low - No rush</option>
-                  <option value="Medium" className="bg-slate-900 text-white">Medium - Affecting some work</option>
-                  <option value="High" className="bg-slate-900 text-white">High - Blocking significant work</option>
-                  <option value="Urgent" className="bg-slate-900 text-white">Urgent - System down / Critical</option>
+                  <option value="">Select Priority</option>
+                  <option value="Low">Low - No rush</option>
+                  <option value="Medium">Medium - Affecting some work</option>
+                  <option value="High">High - Blocking significant work</option>
+                  <option value="Urgent">Urgent - System down / Critical</option>
                 </Select>
               </FormField>
             </div>
@@ -365,4 +356,4 @@ const ScheduleSupport = () => {
   );
 };
 
-export default ScheduleSupport;
+export default React.memo(ScheduleSupport);

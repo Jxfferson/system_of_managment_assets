@@ -93,8 +93,9 @@ const LightRays = ({
 
       if (!containerRef.current) return;
 
+      // Reducir DPR para mejorar rendimiento
       const renderer = new Renderer({
-        dpr: Math.min(window.devicePixelRatio, 2),
+        dpr: Math.min(window.devicePixelRatio, 1.5),
         alpha: true
       });
       rendererRef.current = renderer;
@@ -243,7 +244,7 @@ void main() {
       const updatePlacement = () => {
         if (!containerRef.current || !renderer) return;
 
-        renderer.dpr = Math.min(window.devicePixelRatio, 2);
+        renderer.dpr = Math.min(window.devicePixelRatio, 1.5);
 
         const { clientWidth: wCSS, clientHeight: hCSS } = containerRef.current;
         renderer.setSize(wCSS, hCSS);
@@ -264,24 +265,27 @@ void main() {
           return;
         }
 
-        uniforms.iTime.value = t * 0.001;
+        // Solo renderizar si el componente es visible
+        if (isVisible) {
+          uniforms.iTime.value = t * 0.001;
 
-        if (followMouse && mouseInfluence > 0.0) {
-          const smoothing = 0.92;
+          if (followMouse && mouseInfluence > 0.0) {
+            const smoothing = 0.92;
 
-          smoothMouseRef.current.x = smoothMouseRef.current.x * smoothing + mouseRef.current.x * (1 - smoothing);
-          smoothMouseRef.current.y = smoothMouseRef.current.y * smoothing + mouseRef.current.y * (1 - smoothing);
+            smoothMouseRef.current.x = smoothMouseRef.current.x * smoothing + mouseRef.current.x * (1 - smoothing);
+            smoothMouseRef.current.y = smoothMouseRef.current.y * smoothing + mouseRef.current.y * (1 - smoothing);
 
-          uniforms.mousePos.value = [smoothMouseRef.current.x, smoothMouseRef.current.y];
+            uniforms.mousePos.value = [smoothMouseRef.current.x, smoothMouseRef.current.y];
+          }
+
+          try {
+            renderer.render({ scene: mesh });
+          } catch (error) {
+            console.warn('WebGL rendering error:', error);
+          }
         }
 
-        try {
-          renderer.render({ scene: mesh });
-          animationIdRef.current = requestAnimationFrame(loop);
-        } catch (error) {
-          console.warn('WebGL rendering error:', error);
-          return;
-        }
+        animationIdRef.current = requestAnimationFrame(loop);
       };
 
       window.addEventListener('resize', updatePlacement);

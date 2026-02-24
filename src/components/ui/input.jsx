@@ -5,10 +5,7 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
   return (
     <input
       type={type}
-      className={cn(
-        'input-premium',
-        className
-      )}
+      className={cn('input-premium', className)}
       ref={ref}
       {...props}
     />
