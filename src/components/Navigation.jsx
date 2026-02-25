@@ -103,23 +103,26 @@ const Navigation = () => {
         scrolled ? 'py-3 bg-[#0B1120]/80 backdrop-blur-xl shadow-2xl' : 'py-6 bg-transparent'
       )}
     >
-      <div className="container mx-auto px-6">
-        <div className="flex items-center justify-between">
-          {/* Logo - siempre visible */}
+      <div className="container mx-auto px-6 relative">
+        <div className="flex items-center justify-center">
+          
+          {/* Logo - posicionado a la izquierda */}
           <motion.div 
             whileHover={{ scale: 1.05 }} 
-            className="text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2" 
+            className="absolute left-6 text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2" 
             onClick={goToHome}
           >
-            OTD
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 font-bold">
+              OTD
+            </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
               Support
             </span>
           </motion.div>
 
-          {/* Navegación principal - solo visible en home */}
+          {/* Navegación principal - centrada */}
           {!isAdminRoute && (
-            <ul className="hidden md:flex items-center space-x-2 bg-slate-900/50 backdrop-blur-md px-2 py-1.5 rounded-full border border-white/5">
+            <ul className="flex items-center space-x-2 bg-slate-900/50 backdrop-blur-md px-2 py-1.5 rounded-full border border-white/5">
               {navItems.map(item => (
                 <li key={item.id}>
                   <button 
@@ -152,8 +155,8 @@ const Navigation = () => {
             </div>
           )}
 
-          {/* Botones de acción */}
-          <div className="flex items-center gap-3">
+          {/* Botones de acción - posicionados a la derecha */}
+          <div className="absolute right-6 flex items-center gap-3">
             <button 
               onClick={() => navigate('/admin')}
               className={cn(

@@ -29,9 +29,9 @@ const Hero = () => {
             className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white mb-4 leading-[1.1]"
           >
             IT Equipment <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600">
-              Suppor t
-            </span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600">
+            Suppo<span style={{ letterSpacing: '0.04em' }}>rt</span>
+          </span>
           </motion.h1>
 
           {/* Descripción */}
