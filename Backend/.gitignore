@@ -1,6 +1,6 @@
 # Entornos virtuales
 /env/
-.venv/
+venv/
 
 # Migraciones compiladas y cache
 migrations/__pycache__/

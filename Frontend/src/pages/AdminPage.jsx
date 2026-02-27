@@ -3,13 +3,21 @@ import { Plus, Filter, LogOut, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
-import AdminLogin from '@/components/admin/AdminLogin';
-import AssetStats from '@/components/admin/AssetStats';
-import AssetFilters from '@/components/admin/AssetFilters';
-import AssetForm from '@/components/admin/AssetForm';
-import AssetTable from '@/components/admin/AssetTable';
-import ExportMenu from '@/components/admin/ExportMenu';
-import AssetLotForm from '@/components/admin/AssetLotForm';
+import AdminLogin    from '@/components/admin/AdminLogin';
+import AssetStats    from '@/components/admin/AssetStats';
+import AssetFilters  from '@/components/admin/AssetFilters';
+import AssetForm     from '@/components/admin/AssetForm';
+import AssetTable    from '@/components/admin/AssetTable';
+import ExportMenu    from '@/components/admin/ExportMenu';
+import AssetLotForm  from '@/components/admin/AssetLotForm';
+
+import {
+  getAssets,
+  createAsset,
+  createAssetLot,
+  updateAsset,
+  deleteAsset,
+} from '@/services/almacenService';
 
 const ADMIN_PASSWORD = 'admin123';
 
@@ -23,62 +31,66 @@ const AVAILABLE_ITEMS = [
 ];
 
 const ITEM_SERIAL_PREFIX = {
-  'Teclado ESENSES Basico USB': 'K',
+  'Teclado ESENSES Basico USB':         'K',
   'Mouse Alámbrico HP Óptico negro 100': 'M',
-  'Ethernet 3.0 LAN a USB': 'ELU',
-  'Cable Display Port a VGA 1,8': 'DPVG',
-  'Cable Display VGA a VGA 1,8': 'VGAV',
-  'Extension de Cable eléctrico': 'EXT'
+  'Ethernet 3.0 LAN a USB':             'ELU',
+  'Cable Display Port a VGA 1,8':        'DPVG',
+  'Cable Display VGA a VGA 1,8':         'VGAV',
+  'Extension de Cable eléctrico':        'EXT'
 };
 
 const initialAsset = {
-  id: null,
-  name: '',
-  serial: '',
-  fecha_ingreso: '',
-  fecha_salida: '',
-  destino: ''
+  id: null, name: '', serial: '',
+  fecha_ingreso: '', fecha_salida: '', destino: ''
 };
 
 const initialLotData = {
-  item: '',
-  quantity: 1,
+  item: '', quantity: 1,
   fecha_ingreso: new Date().toISOString().split('T')[0]
 };
 
 const AdminPage = () => {
   /* ========================= AUTH STATES ========================== */
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [password, setPassword]               = useState('');
+  const [error, setError]                     = useState('');
 
   /* ========================= DATA STATES ========================== */
-  const [assets, setAssets] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [showLotForm, setShowLotForm] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [assets, setAssets]             = useState([]);
+  const [loading, setLoading]           = useState(false);
+  const [showForm, setShowForm]         = useState(false);
+  const [showLotForm, setShowLotForm]   = useState(false);
+  const [showFilters, setShowFilters]   = useState(false);
   const [editingAsset, setEditingAsset] = useState(initialAsset);
-  const [lotData, setLotData] = useState(initialLotData);
-  const [filters, setFilters] = useState({ name: '', serial: '', type: '', status: '', date: '' });
+  const [lotData, setLotData]           = useState(initialLotData);
+  const [filters, setFilters]           = useState({ name: '', serial: '', date: '', destino: '', item: '' });
 
   const navigate = useNavigate();
 
-  /* ========================= LOCALSTORAGE ========================== */
-  useEffect(() => {
-    const stored = localStorage.getItem('assets');
-    if (stored) setAssets(JSON.parse(stored));
-  }, []);
+  /* ========================= CARGAR DATOS DESDE API ========================== */
+  const loadAssets = async () => {
+    setLoading(true);
+    try {
+      const data = await getAssets();
+      setAssets(data);
+    } catch (err) {
+      alert('Error al cargar activos: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('assets', JSON.stringify(assets));
-  }, [assets]);
+    if (isAuthenticated) loadAssets();
+  }, [isAuthenticated]);
 
   /* ========================= FILTERS ========================== */
   const filteredAssets = assets.filter(asset =>
-    (filters.name === '' || asset.name.toLowerCase().includes(filters.name.toLowerCase())) &&
-    (filters.serial === '' || asset.serial.toLowerCase().includes(filters.serial.toLowerCase())) &&
-    (filters.status === '' || asset.status === filters.status) &&
-    (filters.date === '' || asset.fecha_ingreso === filters.date)
+    (filters.name    === '' || asset.name.toLowerCase().includes(filters.name.toLowerCase())) &&
+    (filters.serial  === '' || asset.serial.toLowerCase().includes(filters.serial.toLowerCase())) &&
+    (filters.date    === '' || asset.fecha_ingreso === filters.date) &&
+    (filters.destino === '' || asset.destino?.toLowerCase().includes(filters.destino.toLowerCase())) &&
+    (filters.item    === '' || asset.name === filters.item)
   );
 
   /* ========================= AUTH ========================== */
@@ -99,11 +111,6 @@ const AdminPage = () => {
   };
 
   /* ========================= HELPERS ========================== */
-  const getNextId = () => {
-    if (assets.length === 0) return 1;
-    return Math.max(...assets.map(a => Number(a.id))) + 1;
-  };
-
   const extractSerialNumber = (serial, prefix) => {
     if (!serial?.startsWith(prefix)) return null;
     const numPart = serial.replace(prefix, '').replace(/[^0-9]/g, '');
@@ -113,121 +120,75 @@ const AdminPage = () => {
   const getNextSerialNumberByItem = (itemName) => {
     const prefix = ITEM_SERIAL_PREFIX[itemName];
     if (!prefix) return 1;
-    
     const numbers = assets
       .filter(a => a.name === itemName)
       .map(a => extractSerialNumber(a.serial, prefix))
       .filter(n => n !== null && !isNaN(n));
-    
     return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
   };
 
   /* ========================= SINGLE ASSET ========================== */
   const handleAdd = () => {
-    setEditingAsset({ 
-      ...initialAsset, 
-      fecha_ingreso: new Date().toISOString().split('T')[0] 
-    });
+    setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
     setShowForm(true);
   };
 
-  const handleSave = () => {
-    // Validar campos requeridos
+  const handleSave = async () => {
     if (!editingAsset.name || !editingAsset.fecha_ingreso) {
       alert('Item and Fecha Ingreso are required');
       return;
     }
 
-    let finalSerial = editingAsset.serial;
-    
-    // Si es asset nuevo, generar serial automáticamente
+    let finalAsset = { ...editingAsset };
+
+    // Generar serial automático si es nuevo
     if (!editingAsset.id) {
       const prefix = ITEM_SERIAL_PREFIX[editingAsset.name];
-      if (!prefix) {
-        alert('Invalid item selected');
-        return;
-      }
-      
-      const nextNum = getNextSerialNumberByItem(editingAsset.name);
-      finalSerial = `${prefix}${String(nextNum).padStart(5, '0')}`;
-      
-      // Verificar duplicados
-      const duplicate = assets.find(a => a.serial === finalSerial);
-      if (duplicate) {
-        alert('Serial number already exists');
-        return;
-      }
-    } else {
-      // Si es edición, verificar que el serial no exista en otro asset
-      const duplicate = assets.find(
-        a => a.serial === editingAsset.serial && a.id !== editingAsset.id
-      );
-      if (duplicate) {
-        alert('Serial number already exists');
-        return;
-      }
+      if (!prefix) { alert('Invalid item selected'); return; }
+      const nextNum  = getNextSerialNumberByItem(editingAsset.name);
+      finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
     }
 
-    if (editingAsset.id) {
-      // Editar existente
-      setAssets(prev => prev.map(a => a.id === editingAsset.id ? editingAsset : a));
-    } else {
-      // Crear nuevo con serial generado
-      const newAsset = {
-        ...editingAsset,
-        id: getNextId().toString(),
-        serial: finalSerial
-      };
-      setAssets(prev => [...prev, newAsset]);
+    try {
+      if (editingAsset.id) {
+        await updateAsset(finalAsset);
+      } else {
+        await createAsset(finalAsset);
+      }
+      await loadAssets();       // refresca la tabla desde la BD
+      setShowForm(false);
+      setEditingAsset(initialAsset);
+    } catch (err) {
+      alert('Error al guardar: ' + err.message);
     }
-
-    setShowForm(false);
-    setEditingAsset(initialAsset);
   };
 
   /* ========================= LOT ========================== */
-  const handleSaveLot = () => {
+  const handleSaveLot = async () => {
     if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
       alert('Item, Quantity and Fecha Ingreso are required');
       return;
     }
-
     const quantity = parseInt(lotData.quantity);
     if (quantity <= 0 || quantity > 999) {
       alert('Quantity must be between 1 and 999');
       return;
     }
 
-    let nextId = getNextId();
-    const itemName = lotData.item;
-    const prefix = ITEM_SERIAL_PREFIX[itemName];
-    
-    if (!prefix) {
-      alert('Invalid item selected');
-      return;
-    }
-    
-    let nextSerialNum = getNextSerialNumberByItem(itemName);
-    const newAssets = [];
+    const prefix = ITEM_SERIAL_PREFIX[lotData.item];
+    if (!prefix) { alert('Invalid item selected'); return; }
+
+    let nextSerialNum = getNextSerialNumberByItem(lotData.item);
+    const newAssets   = [];
 
     for (let i = 0; i < quantity; i++) {
       const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
-      
-      if (assets.some(a => a.serial === serial)) {
-        nextSerialNum++;
-        continue;
-      }
-
+      if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
       newAssets.push({
-        id: nextId.toString(),
-        name: itemName,
-        serial,
+        name: lotData.item, serial,
         fecha_ingreso: lotData.fecha_ingreso,
-        fecha_salida: '',
-        destino: '',
+        fecha_salida: '', destino: '',
       });
-
-      nextId++;
       nextSerialNum++;
     }
 
@@ -236,30 +197,32 @@ const AdminPage = () => {
       return;
     }
 
-    setAssets(prev => [...prev, ...newAssets]);
-    setShowLotForm(false);
-    setLotData(initialLotData);
-    
-    alert(`Successfully added ${newAssets.length} "${itemName}" to inventory!`);
+    try {
+      await createAssetLot(newAssets);
+      await loadAssets();
+      setShowLotForm(false);
+      setLotData(initialLotData);
+      alert(`Successfully added ${newAssets.length} "${lotData.item}" to inventory!`);
+    } catch (err) {
+      alert('Error al guardar lote: ' + err.message);
+    }
   };
 
   /* ========================= DELETE ========================== */
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this asset?')) return;
-    setAssets(prev => prev.filter(a => a.id !== id));
+    try {
+      await deleteAsset(id);
+      await loadAssets();
+    } catch (err) {
+      alert('Error al eliminar: ' + err.message);
+    }
   };
 
   /* ========================= EDIT ========================== */
   const handleEdit = (asset) => {
     setEditingAsset(asset);
     setShowForm(true);
-  };
-
-  /* ========================= GET NEXT SERIAL FOR FORM ========================== */
-  const getNextSerialForForm = () => {
-    // Solo calcular si es un asset NUEVO y tiene item seleccionado
-    if (!editingAsset.name || editingAsset.id) return null;
-    return getNextSerialNumberByItem(editingAsset.name);
   };
 
   /* ========================= LOGIN SCREEN ========================== */
@@ -287,17 +250,12 @@ const AdminPage = () => {
               <Plus className="w-4 h-4 mr-2" /> Add Asset
             </Button>
 
-            <Button 
-              onClick={() => setShowLotForm(true)} 
-              className="h-10 px-6 bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-600 hover:to-slate-800 text-white"
-            >
+            <Button onClick={() => setShowLotForm(true)} className="h-10 px-6 bg-gradient-to-r from-orange-500 to-red-600">
               <Layers className="w-4 h-4 mr-2" /> Add Lot
             </Button>
-
             <Button onClick={() => setShowFilters(!showFilters)} variant="outline">
               <Filter className="w-4 h-4 mr-2" /> Filter
             </Button>
-
             <ExportMenu filteredAssets={filteredAssets} />
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="w-4 h-4 mr-2" /> Logout
@@ -309,36 +267,35 @@ const AdminPage = () => {
 
         {showFilters && <AssetFilters filters={filters} setFilters={setFilters} />}
 
+        {/* Indicador de carga */}
+        {loading && (
+          <div className="text-center text-slate-400 py-8">Cargando datos...</div>
+        )}
+
         {showForm && (
           <AssetForm
             editingAsset={editingAsset}
             setEditingAsset={setEditingAsset}
             onSave={handleSave}
-            onCancel={() => { 
-              setShowForm(false); 
-              setEditingAsset(initialAsset); 
-            }}
+            onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }}
             isEditing={!!editingAsset.id}
-            nextSerialNumber={getNextSerialForForm()}  
+            nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null}
           />
         )}
 
         <AssetLotForm
           isOpen={showLotForm}
-          onClose={() => { 
-            setShowLotForm(false); 
-            setLotData(initialLotData); 
-          }}
+          onClose={() => { setShowLotForm(false); setLotData(initialLotData); }}
           lotData={lotData}
           setLotData={setLotData}
           onSave={handleSaveLot}
           nextSerialNumber={getNextSerialNumberByItem(lotData.item)}
         />
 
-        <AssetTable 
-          assets={filteredAssets} 
-          onEdit={handleEdit} 
-          onDelete={handleDelete} 
+        <AssetTable
+          assets={filteredAssets}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
         />
 
       </div>
