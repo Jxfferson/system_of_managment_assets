@@ -283,11 +283,14 @@ const AdminPage = () => {
           <h1 className="text-3xl font-bold text-white">Asset Management</h1>
 
           <div className="flex gap-3 flex-wrap">
-            <Button onClick={handleAdd} className="h-10 px-6 bg-gradient-to-r from-cyan-500 to-blue-600">
+            <Button onClick={handleAdd} className="h-10 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white">
               <Plus className="w-4 h-4 mr-2" /> Add Asset
             </Button>
 
-            <Button onClick={() => setShowLotForm(true)} className="h-10 px-6 bg-gradient-to-r from-orange-500 to-red-600">
+            <Button 
+              onClick={() => setShowLotForm(true)} 
+              className="h-10 px-6 bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-600 hover:to-slate-800 text-white"
+            >
               <Layers className="w-4 h-4 mr-2" /> Add Lot
             </Button>
 
@@ -316,7 +319,7 @@ const AdminPage = () => {
               setEditingAsset(initialAsset); 
             }}
             isEditing={!!editingAsset.id}
-            nextSerialNumber={getNextSerialForForm()}  // ✅ AHORA SÍ SE PASA
+            nextSerialNumber={getNextSerialForForm()}  
           />
         )}
 
