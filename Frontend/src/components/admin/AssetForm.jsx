@@ -5,7 +5,43 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-const AssetForm = ({ editingAsset, setEditingAsset, onSave, onCancel }) => {
+// Mapeo de items a sus prefijos de serial
+const ITEM_SERIAL_PREFIX = {
+  'Teclado ESENSES Basico USB': 'K',
+  'Mouse Alámbrico HP Óptico negro 100': 'M',
+  'Ethernet 3.0 LAN a USB': 'ELU',
+  'Cable Display Port a VGA 1,8': 'DPVG',
+  'Cable Display VGA a VGA 1,8': 'VGAV',
+  'Extension de Cable eléctrico': 'EXT'
+};
+
+const AVAILABLE_ITEMS = [
+  'Teclado ESENSES Basico USB',
+  'Mouse Alámbrico HP Óptico negro 100',
+  'Ethernet 3.0 LAN a USB',
+  'Cable Display Port a VGA 1,8',
+  'Cable Display VGA a VGA 1,8',
+  'Extension de Cable eléctrico'
+];
+
+const AssetForm = ({ 
+  editingAsset, 
+  setEditingAsset, 
+  onSave, 
+  onCancel, 
+  isEditing = false,
+  nextSerialNumber = null
+}) => {
+  
+  // Obtener prefijo del item seleccionado
+  const selectedItem = editingAsset.name;
+  const serialPrefix = selectedItem ? ITEM_SERIAL_PREFIX[selectedItem] || '' : '';
+  
+  // Mostrar serial completo (prefijo + número)
+  const displaySerial = serialPrefix && nextSerialNumber && !isEditing
+    ? `${serialPrefix}${String(nextSerialNumber).padStart(5, '0')}`
+    : editingAsset.serial;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -13,68 +49,127 @@ const AssetForm = ({ editingAsset, setEditingAsset, onSave, onCancel }) => {
       className="mb-8 p-6 rounded-2xl bg-slate-900/60 border border-white/10"
     >
       <h2 className="text-xl font-semibold text-white mb-4">
-        {editingAsset.id ? 'Edit Asset' : 'New Asset'}
+        {isEditing ? 'Edit Asset' : 'New Asset'}
       </h2>
+      
       <div className="grid md:grid-cols-2 gap-4">
-        <Input
-          placeholder="Asset Name *"
-          value={editingAsset.name}
-          onChange={(e) => setEditingAsset({ ...editingAsset, name: e.target.value })}
-        />
-        <Input
-          placeholder="Serial Number *"
-          value={editingAsset.serial}
-          onChange={(e) => setEditingAsset({ ...editingAsset, serial: e.target.value })}
-        />
-        <Input
-          type="number"
-          placeholder="Quantity"
-          value={editingAsset.quantity}
-          onChange={(e) => setEditingAsset({ ...editingAsset, quantity: e.target.value })}
-        />
-        <Input
-          type="date"
-          value={editingAsset.date}
-          onChange={(e) => setEditingAsset({ ...editingAsset, date: e.target.value })}
-        />
-        <Select
-          value={editingAsset.type}
-          onChange={(e) => setEditingAsset({ ...editingAsset, type: e.target.value })}
-        >
-          <option value="Desktop Computer">Desktop Computer</option>
-          <option value="Laptop">Laptop</option>
-          <option value="Monitor">Monitor</option>
-          <option value="Server">Server</option>
-          <option value="Network Equipment">Network Equipment</option>
-          <option value="Mobile Device">Mobile Device</option>
-          <option value="Printer">Printer</option>
-          <option value="Other">Other</option>
-        </Select>
-        <Select
-          value={editingAsset.status}
-          onChange={(e) => setEditingAsset({ ...editingAsset, status: e.target.value })}
-        >
-          <option value="available">Available</option>
-          <option value="in-use">In Use</option>
-          <option value="retired">Retired</option>
-        </Select>
-        <Input
-          placeholder="Assigned To (optional)"
-          value={editingAsset.assignedTo}
-          onChange={(e) => setEditingAsset({ ...editingAsset, assignedTo: e.target.value })}
-        />
-        <Input
-          placeholder="Notes (optional)"
-          value={editingAsset.notes}
-          onChange={(e) => setEditingAsset({ ...editingAsset, notes: e.target.value })}
-        />
+        
+        {/* ITEM - Select si es nuevo, Readonly si es edición */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Item *
+          </label>
+          {isEditing ? (
+            <Input
+              value={editingAsset.name}
+              readOnly
+              className="bg-slate-800/50 cursor-not-allowed"
+            />
+          ) : (
+            <Select
+              value={editingAsset.name}
+              onChange={(e) => {
+                const itemName = e.target.value;
+                const prefix = ITEM_SERIAL_PREFIX[itemName];
+                setEditingAsset({ 
+                  ...editingAsset, 
+                  name: itemName,
+                  serial: '' // Reset serial para que se genere nuevo
+                });
+              }}
+            >
+              <option value="">Select an item...</option>
+              {AVAILABLE_ITEMS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </Select>
+          )}
+        </div>
+
+        {/* SERIAL - Auto-generado (readonly) */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Serial {isEditing ? '' : '(auto-generated)'}
+          </label>
+          <Input
+            value={displaySerial || ''}
+            readOnly
+            className="bg-slate-800/50 cursor-not-allowed font-mono"
+            placeholder={isEditing ? '' : 'Select item first'}
+          />
+        </div>
+
+        {/* FECHA_INGRESO - Editable */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Fecha Ingreso *
+          </label>
+          <Input
+            type="date"
+            value={editingAsset.fecha_ingreso || ''}
+            onChange={(e) => setEditingAsset({ ...editingAsset, fecha_ingreso: e.target.value })}
+            max={new Date().toISOString().split('T')[0]}
+          />
+        </div>
+
+        {/* FECHA_SALIDA - Editable */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Fecha Salida
+          </label>
+          <Input
+            type="date"
+            value={editingAsset.fecha_salida || ''}
+            onChange={(e) => setEditingAsset({ ...editingAsset, fecha_salida: e.target.value })}
+            min={editingAsset.fecha_ingreso || ''}
+            placeholder="Optional"
+          />
+        </div>
+
+        {/* DESTINO - Editable */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Destino
+          </label>
+          <Select
+            value={editingAsset.destino || ''}
+            onChange={(e) => setEditingAsset({ ...editingAsset, destino: e.target.value })}
+          >
+            <option value="">Select destination...</option>
+            <option value="Almacen Principal">Almacen Principal</option>
+            <option value="Oficina Administrativa">Oficina Administrativa</option>
+            <option value="Sala de Juntas">Sala de Juntas</option>
+            <option value="Soporte Técnico">Soporte Técnico</option>
+            <option value="Recursos Humanos">Recursos Humanos</option>
+            <option value="En Préstamo">En Préstamo</option>
+            <option value="En Reparación">En Reparación</option>
+            <option value="Baja">Baja</option>
+          </Select>
+        </div>
+
       </div>
-      <div className="flex justify-end gap-3 mt-4">
+
+      {/* Preview del serial que se generará */}
+      {!isEditing && selectedItem && nextSerialNumber && (
+        <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+          <p className="text-sm text-cyan-400">
+            <span className="font-medium">Serial a generar:</span>{' '}
+            <code className="font-mono font-bold">{displaySerial}</code>
+          </p>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex justify-end gap-3 mt-6">
         <Button onClick={onCancel} variant="outline">
           <X className="w-4 h-4 mr-2" /> Cancel
         </Button>
-        <Button onClick={onSave} className="h-9 px-8 bg-gradient-to-r from-cyan-500 to-blue-600">
-          <Save className="w-4 h-4 mr-2" /> Save
+        <Button 
+          onClick={onSave} 
+          className="h-9 px-8 bg-gradient-to-r from-cyan-500 to-blue-600"
+          disabled={!editingAsset.name || !editingAsset.fecha_ingreso}
+        >
+          <Save className="w-4 h-4 mr-2" /> {isEditing ? 'Save Changes' : 'Create Asset'}
         </Button>
       </div>
     </motion.div>

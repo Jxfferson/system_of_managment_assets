@@ -107,13 +107,13 @@ const Navigation = () => {
           {/* Logo */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="absolute left-6 text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2"
+            className="absolute left-0 text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2"
             onClick={goToHome}
           >
-            <span className="mt-12 text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 font-bold">
+            <span className="mt-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 font-bold">
               OTD
             </span>
-            <span className="mt-12 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+            <span className="mt-0 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
               Support
             </span>
           </motion.div>
