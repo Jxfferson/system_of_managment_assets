@@ -21,7 +21,7 @@ Backend/
 │   │   └── __init__.py
 │   ├── __init__.py
 │   └── main.py                 ← Punto de entrada FastAPI
-├── .env                        ← ⚠️ Pon tu contraseña aquí (no subir a Git)
+├── .env                       
 ├── .env.example
 ├── .gitignore
 └── requirements.txt
