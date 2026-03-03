@@ -27,3 +27,14 @@ class AlmacenResponse(AlmacenBase):
     ID: int
 
     model_config = {"from_attributes": True}
+
+
+class ItemCreate(BaseModel):
+    name: str
+    serial_prefix: Optional[str] = None
+
+class ItemResponse(BaseModel):
+    name: str
+    serial_prefix: str
+    class Config:
+        from_attributes = True

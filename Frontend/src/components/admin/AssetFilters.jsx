@@ -8,12 +8,11 @@ const selectClass = `
   appearance-none cursor-pointer
 `.trim();
 
-const AssetFilters = ({ filters, setFilters }) => {
+const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
   const update = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
 
   return (
     <div className="mb-6 p-6 rounded-2xl bg-slate-900/60 border border-white/10 grid md:grid-cols-3 gap-4">
-
 
       <Input
         placeholder="Filter by Serial"
@@ -47,12 +46,20 @@ const AssetFilters = ({ filters, setFilters }) => {
         onChange={(e) => update('item', e.target.value)}
       >
         <option value="">All Items</option>
-        <option value="Teclado ESENSES Basico USB">Teclado ESENSES Basico USB</option>
-        <option value="Mouse Alámbrico HP Óptico negro 100">Mouse Alámbrico HP Óptico negro 100</option>
-        <option value="Ethernet 3.0 LAN a USB">Ethernet 3.0 LAN a USB</option>
-        <option value="Cable Display Port a VGA 1,8">Cable Display Port a VGA 1,8</option>
-        <option value="Cable Display VGA a VGA 1,8">Cable Display VGA a VGA 1,8</option>
-        <option value="Extension de Cable eléctrico">Extension de Cable eléctrico</option>
+        {availableItems.length > 0 ? (
+          availableItems.map((item) => (
+            <option key={item} value={item}>{item}</option>
+          ))
+        ) : (
+          <>
+            <option value="Teclado ESENSES Basico USB">Teclado ESENSES Basico USB</option>
+            <option value="Mouse Alámbrico HP Óptico negro 100">Mouse Alámbrico HP Óptico negro 100</option>
+            <option value="Ethernet 3.0 LAN a USB">Ethernet 3.0 LAN a USB</option>
+            <option value="Cable Display Port a VGA 1,8">Cable Display Port a VGA 1,8</option>
+            <option value="Cable Display VGA a VGA 1,8">Cable Display VGA a VGA 1,8</option>
+            <option value="Extension de Cable eléctrico">Extension de Cable eléctrico</option>
+          </>
+        )}
       </select>
 
       <button

@@ -21,7 +21,8 @@ import {
 
 const ADMIN_PASSWORD = 'admin123';
 
-const AVAILABLE_ITEMS = [
+// Items por defecto (solo para mostrar al inicio)
+const DEFAULT_ITEMS = [
   'Teclado ESENSES Basico USB',
   'Mouse Alámbrico HP Óptico negro 100',
   'Ethernet 3.0 LAN a USB',
@@ -30,13 +31,22 @@ const AVAILABLE_ITEMS = [
   'Extension de Cable eléctrico'
 ];
 
-const ITEM_SERIAL_PREFIX = {
-  'Teclado ESENSES Basico USB':         'K',
+// Prefijos por defecto
+const DEFAULT_PREFIXES = {
+  'Teclado ESENSES Basico USB': 'K',
   'Mouse Alámbrico HP Óptico negro 100': 'M',
-  'Ethernet 3.0 LAN a USB':             'ELU',
-  'Cable Display Port a VGA 1,8':        'DPVG',
-  'Cable Display VGA a VGA 1,8':         'VGAV',
-  'Extension de Cable eléctrico':        'EXT'
+  'Ethernet 3.0 LAN a USB': 'ELU',
+  'Cable Display Port a VGA 1,8': 'DPVG',
+  'Cable Display VGA a VGA 1,8': 'VGAV',
+  'Extension de Cable eléctrico': 'EXT'
+};
+
+// ✅ FUNCIÓN PARA GENERAR PREFIJO AUTOMÁTICO
+const generatePrefix = (itemName) => {
+  if (!itemName) return 'ITM';
+  // Extraer letras/números, convertir a mayúsculas, tomar primeros 3-6
+  const prefix = itemName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  return prefix || 'ITM';
 };
 
 const initialAsset = {
@@ -64,6 +74,9 @@ const AdminPage = () => {
   const [editingAsset, setEditingAsset] = useState(initialAsset);
   const [lotData, setLotData]           = useState(initialLotData);
   const [filters, setFilters]           = useState({ name: '', serial: '', date: '', destino: '', item: '' });
+  
+  // ✅ Estado para prefijos dinámicos (se actualiza al cargar desde BD)
+  const [itemPrefixMap, setItemPrefixMap] = useState(DEFAULT_PREFIXES);
 
   const navigate = useNavigate();
 
@@ -73,6 +86,19 @@ const AdminPage = () => {
     try {
       const data = await getAssets();
       setAssets(data);
+      
+      // ✅ Extraer prefijos únicos desde los assets cargados
+      const prefixMap = { ...DEFAULT_PREFIXES };
+      data.forEach(asset => {
+        if (asset.name && asset.serial && !prefixMap[asset.name]) {
+          // Extraer prefijo del serial existente
+          const match = asset.serial.match(/^([A-Z0-9]+)/);
+          if (match) {
+            prefixMap[asset.name] = match[1];
+          }
+        }
+      });
+      setItemPrefixMap(prefixMap);
     } catch (err) {
       alert('Error al cargar activos: ' + err.message);
     } finally {
@@ -86,8 +112,8 @@ const AdminPage = () => {
 
   /* ========================= FILTERS ========================== */
   const filteredAssets = assets.filter(asset =>
-    (filters.name    === '' || asset.name.toLowerCase().includes(filters.name.toLowerCase())) &&
-    (filters.serial  === '' || asset.serial.toLowerCase().includes(filters.serial.toLowerCase())) &&
+    (filters.name    === '' || asset.name?.toLowerCase().includes(filters.name.toLowerCase())) &&
+    (filters.serial  === '' || asset.serial?.toLowerCase().includes(filters.serial.toLowerCase())) &&
     (filters.date    === '' || asset.fecha_ingreso === filters.date) &&
     (filters.destino === '' || asset.destino?.toLowerCase().includes(filters.destino.toLowerCase())) &&
     (filters.item    === '' || asset.name === filters.item)
@@ -118,50 +144,73 @@ const AdminPage = () => {
   };
 
   const getNextSerialNumberByItem = (itemName) => {
-    const prefix = ITEM_SERIAL_PREFIX[itemName];
-    if (!prefix) return 1;
+    const prefix = itemPrefixMap[itemName] || generatePrefix(itemName);
+    
+    // Filtrar assets que coincidan con el item Y tengan serial
     const numbers = assets
-      .filter(a => a.name === itemName)
-      .map(a => extractSerialNumber(a.serial, prefix))
+      .filter(a => a.name === itemName && a.serial)
+      .map(a => {
+        // Extraer número del serial: "DPVG00003" → 3
+        const numMatch = a.serial.match(new RegExp(`^${prefix}(\\d+)$`));
+        return numMatch ? parseInt(numMatch[1], 10) : null;
+      })
       .filter(n => n !== null && !isNaN(n));
+    
+    // Si hay números, retornar el máximo + 1. Si no, empezar en 1
     return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
   };
 
   /* ========================= SINGLE ASSET ========================== */
-  const handleAdd = () => {
-    setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
-    setShowForm(true);
-  };
+    const handleAdd = () => {
+      setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
+      setShowForm(true);
+    };
 
-  const handleSave = async () => {
-    if (!editingAsset.name || !editingAsset.fecha_ingreso) {
-      alert('Item and Fecha Ingreso are required');
-      return;
-    }
-
-    let finalAsset = { ...editingAsset };
-
-    // Generar serial automático si es nuevo
-    if (!editingAsset.id) {
-      const prefix = ITEM_SERIAL_PREFIX[editingAsset.name];
-      if (!prefix) { alert('Invalid item selected'); return; }
-      const nextNum  = getNextSerialNumberByItem(editingAsset.name);
-      finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
-    }
-
-    try {
-      if (editingAsset.id) {
-        await updateAsset(finalAsset);
-      } else {
-        await createAsset(finalAsset);
+    const handleSave = async (updateSerial = false) => {
+      if (!editingAsset.name || !editingAsset.fecha_ingreso) {
+        alert('Item and Fecha Ingreso are required');
+        return;
       }
-      await loadAssets();       // refresca la tabla desde la BD
-      setShowForm(false);
-      setEditingAsset(initialAsset);
-    } catch (err) {
-      alert('Error al guardar: ' + err.message);
-    }
-  };
+
+      let finalAsset = { ...editingAsset };
+
+      // Si es NUEVO asset: generar serial automático
+      if (!editingAsset.id) {
+        const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+        const nextNum = getNextSerialNumberByItem(editingAsset.name);
+        finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
+      }
+      // Si es EDICIÓN y el usuario marcó el checkbox
+      else if (updateSerial) {
+        const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
+        
+        // Solo regenerar si cambió el nombre
+        if (oldAsset && oldAsset.name !== editingAsset.name) {
+          const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+          
+          // ✅ Obtener el siguiente número disponible para el NUEVO item
+          const nextNum = getNextSerialNumberByItem(editingAsset.name);
+          
+          // Crear serial con nuevo prefijo y número correcto
+          finalAsset.serial = `${newPrefix}${String(nextNum).padStart(5, '0')}`;
+        }
+      }
+      // Si es edición pero NO marcó checkbox → mantiene serial original
+
+      try {
+        if (editingAsset.id) {
+          await updateAsset(finalAsset);
+        } else {
+          await createAsset(finalAsset);
+        }
+        await loadAssets();
+        setShowForm(false);
+        setEditingAsset(initialAsset);
+      } catch (err) {
+        console.error('Error saving:', err);
+        alert('Error al guardar: ' + err.message);
+      }
+    };
 
   /* ========================= LOT ========================== */
   const handleSaveLot = async () => {
@@ -175,8 +224,8 @@ const AdminPage = () => {
       return;
     }
 
-    const prefix = ITEM_SERIAL_PREFIX[lotData.item];
-    if (!prefix) { alert('Invalid item selected'); return; }
+    // ✅ Usar prefijo dinámico o generar uno automático
+    const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
 
     let nextSerialNum = getNextSerialNumberByItem(lotData.item);
     const newAssets   = [];
@@ -250,7 +299,7 @@ const AdminPage = () => {
               <Plus className="w-4 h-4 mr-2" /> Add Asset
             </Button>
 
-            <Button onClick={() => setShowLotForm(true)} className="h-10 px-6 bg-gradient-to-r from-orange-500 to-red-600">
+            <Button onClick={() => setShowLotForm(true)} className="text-white h-10 px-6 bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-600 hover:to-slate-800">
               <Layers className="w-4 h-4 mr-2" /> Add Lot
             </Button>
             <Button onClick={() => setShowFilters(!showFilters)} variant="outline">
@@ -267,7 +316,6 @@ const AdminPage = () => {
 
         {showFilters && <AssetFilters filters={filters} setFilters={setFilters} />}
 
-        {/* Indicador de carga */}
         {loading && (
           <div className="text-center text-slate-400 py-8">Cargando datos...</div>
         )}
@@ -280,6 +328,8 @@ const AdminPage = () => {
             onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }}
             isEditing={!!editingAsset.id}
             nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null}
+            availableItems={Object.keys(itemPrefixMap)}
+            itemPrefixMap={itemPrefixMap}
           />
         )}
 
@@ -290,6 +340,12 @@ const AdminPage = () => {
           setLotData={setLotData}
           onSave={handleSaveLot}
           nextSerialNumber={getNextSerialNumberByItem(lotData.item)}
+          initialItems={Object.keys(itemPrefixMap)}
+          initialPrefixMap={itemPrefixMap}
+          onItemCreated={(name, prefix) => {
+            // ✅ Actualizar mapa de prefijos cuando se crea un item nuevo
+            setItemPrefixMap(prev => ({ ...prev, [name]: prefix }));
+          }}
         />
 
         <AssetTable

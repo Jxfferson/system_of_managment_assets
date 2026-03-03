@@ -5,37 +5,42 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-// Mapeo de items a sus prefijos de serial
-const ITEM_SERIAL_PREFIX = {
-  'Teclado ESENSES Basico USB': 'K',
-  'Mouse Alámbrico HP Óptico negro 100': 'M',
-  'Ethernet 3.0 LAN a USB': 'ELU',
-  'Cable Display Port a VGA 1,8': 'DPVG',
-  'Cable Display VGA a VGA 1,8': 'VGAV',
-  'Extension de Cable eléctrico': 'EXT'
-};
-
-const AVAILABLE_ITEMS = [
-  'Teclado ESENSES Basico USB',
-  'Mouse Alámbrico HP Óptico negro 100',
-  'Ethernet 3.0 LAN a USB',
-  'Cable Display Port a VGA 1,8',
-  'Cable Display VGA a VGA 1,8',
-  'Extension de Cable eléctrico'
-];
-
 const AssetForm = ({ 
   editingAsset, 
   setEditingAsset, 
   onSave, 
   onCancel, 
   isEditing = false,
-  nextSerialNumber = null
+  nextSerialNumber = null,
+  availableItems = [],
+  itemPrefixMap = {}
 }) => {
+  
+  // Fallback para items hardcoded si no vienen por props
+  const fallbackItems = [
+    'Teclado ESENSES Basico USB',
+    'Mouse Alámbrico HP Óptico negro 100',
+    'Ethernet 3.0 LAN a USB',
+    'Cable Display Port a VGA 1,8',
+    'Cable Display VGA a VGA 1,8',
+    'Extension de Cable eléctrico'
+  ];
+  
+  const fallbackPrefixes = {
+    'Teclado ESENSES Basico USB': 'K',
+    'Mouse Alámbrico HP Óptico negro 100': 'M',
+    'Ethernet 3.0 LAN a USB': 'ELU',
+    'Cable Display Port a VGA 1,8': 'DPVG',
+    'Cable Display VGA a VGA 1,8': 'VGAV',
+    'Extension de Cable eléctrico': 'EXT'
+  };
+
+  const itemsList = availableItems.length > 0 ? availableItems : fallbackItems;
+  const prefixes = { ...fallbackPrefixes, ...itemPrefixMap };
   
   // Obtener prefijo del item seleccionado
   const selectedItem = editingAsset.name;
-  const serialPrefix = selectedItem ? ITEM_SERIAL_PREFIX[selectedItem] || '' : '';
+  const serialPrefix = selectedItem ? (prefixes[selectedItem] || '') : '';
   
   // Mostrar serial completo (prefijo + número)
   const displaySerial = serialPrefix && nextSerialNumber && !isEditing
@@ -54,39 +59,45 @@ const AssetForm = ({
       
       <div className="grid md:grid-cols-2 gap-4">
         
-        {/* ITEM - Select si es nuevo, Readonly si es edición */}
+        {/* ITEM */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Item *
           </label>
-          {isEditing ? (
-            <Input
-              value={editingAsset.name}
-              readOnly
-              className="bg-slate-800/50 cursor-not-allowed"
-            />
-          ) : (
+          <div className="relative">
             <Select
               value={editingAsset.name}
               onChange={(e) => {
-                const itemName = e.target.value;
-                const prefix = ITEM_SERIAL_PREFIX[itemName];
-                setEditingAsset({ 
-                  ...editingAsset, 
-                  name: itemName,
-                  serial: '' // Reset serial para que se genere nuevo
-                });
+                const val = e.target.value;
+                if (val === '__NEW__') {
+                  setEditingAsset({ ...editingAsset, name: '', serial: '' });
+                } else {
+                  setEditingAsset({ 
+                    ...editingAsset, 
+                    name: val,
+                    serial: isEditing ? editingAsset.serial : '' 
+                  });
+                }
               }}
             >
-              <option value="">Select an item...</option>
-              {AVAILABLE_ITEMS.map((item) => (
+              <option value="">Select or type...</option>
+              {itemsList.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
+              <option value="__NEW__" className="text-sky-400">+ New item...</option>
             </Select>
-          )}
+            {/* Input libre para escribir directamente */}
+            <Input
+              type="text"
+              value={editingAsset.name}
+              onChange={(e) => setEditingAsset({ ...editingAsset, name: e.target.value, serial: isEditing ? editingAsset.serial : '' })}
+              placeholder="Or type item name..."
+              className="mt-2 bg-slate-900"
+            />
+          </div>
         </div>
 
-        {/* SERIAL - Auto-generado (readonly) */}
+        {/* SERIAL */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Serial {isEditing ? '' : '(auto-generated)'}
@@ -99,7 +110,7 @@ const AssetForm = ({
           />
         </div>
 
-        {/* FECHA_INGRESO - Editable */}
+        {/* FECHA_INGRESO */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Fecha Ingreso *
@@ -112,7 +123,7 @@ const AssetForm = ({
           />
         </div>
 
-        {/* FECHA_SALIDA - Editable */}
+        {/* FECHA_SALIDA */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Fecha Salida
@@ -126,7 +137,7 @@ const AssetForm = ({
           />
         </div>
 
-        {/* DESTINO - Editable */}
+        {/* DESTINO */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Destino
@@ -136,20 +147,18 @@ const AssetForm = ({
             onChange={(e) => setEditingAsset({ ...editingAsset, destino: e.target.value })}
           >
             <option value="">Select destination...</option>
-            <option value="Almacen Principal">Almacen Principal</option>
-            <option value="Oficina Administrativa">Oficina Administrativa</option>
-            <option value="Sala de Juntas">Sala de Juntas</option>
-            <option value="Soporte Técnico">Soporte Técnico</option>
-            <option value="Recursos Humanos">Recursos Humanos</option>
-            <option value="En Préstamo">En Préstamo</option>
-            <option value="En Reparación">En Reparación</option>
-            <option value="Baja">Baja</option>
+            <option value="COS-TMO-C-060">COS-TMO-C-060</option>
+            <option value="COS-TMO-C-049">COS-TMO-C-049</option>
+            <option value="COS-ARS-B-053">COS-ARS-B-053</option>
+            <option value="COL-TMO-LAP">COL-TMO-LAP</option>
+            <option value="COS-ARS-B-047">COS-ARS-B-047</option>
+            <option value="COS-ARS-B-038">COS-ARS-B-038</option>
           </Select>
         </div>
 
       </div>
 
-      {/* Preview del serial que se generará */}
+      {/* Preview del serial */}
       {!isEditing && selectedItem && nextSerialNumber && (
         <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
           <p className="text-sm text-cyan-400">

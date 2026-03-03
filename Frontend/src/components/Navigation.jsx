@@ -97,26 +97,25 @@ const Navigation = () => {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
         scrolled
-          ? 'py-3 bg-[#0B1120]/80 backdrop-blur-xl shadow-2xl'
-          : 'py-6 bg-transparent'
+          ? 'bg-[#0B1120]/80 backdrop-blur-xl shadow-2xl'
+          : 'bg-transparent'
       )}
     >
-      <div className="container mx-auto px-6 relative h-full">
-        <div className="flex items-center justify-center">
-
-          {/* Logo */}
-<motion.div
-  whileHover={{ scale: 1.05 }}
-  className="absolute left-0 text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2"
-  onClick={goToHome}
->
-  <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 font-bold">
-    OTD
-  </span>
-  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-    Support
-  </span>
-</motion.div>
+      <div className="container mx-auto px-6">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo - SIEMPRE en la misma posición */}
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="text-2xl font-bold tracking-tighter text-white cursor-pointer flex items-center gap-2"
+            onClick={goToHome}
+          >
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 font-bold">
+              OTD
+            </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+              Support
+            </span>
+          </motion.div>
 
           {/* Navegación principal */}
           {!isAdminRoute && (
@@ -150,8 +149,8 @@ const Navigation = () => {
             </ul>
           )}
 
-          {/* Botones de la derecha (Admin / Get Support) */}
-          <div className="absolute right-8 flex items-center gap-4">
+          {/* Botones de la derecha */}
+          <div className="flex items-center gap-4">
             {!isAdminRoute && (
               <button
                 onClick={() => navigate('/admin')}
@@ -169,38 +168,18 @@ const Navigation = () => {
                 Get Support
               </button>
             )}
+
+            {isAdminRoute && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <span className="flex text-sm font-medium text-cyan-400 bg-cyan-500/10 px-6 py-2 rounded-full border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+                  Admin Panel
+                </span>
+              </motion.div>
+            )}
           </div>
-
-          {/* Admin Panel Badge - Posicionado independiente a la derecha */}
-          {isAdminRoute && (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="absolute right-0 top-0"
-            >
-              <span className="flex text-sm font-medium text-cyan-400 bg-cyan-500/10 px-6 py-2 rounded-full border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
-                Admin Panel
-              </span>
-            </motion.div>
-          )}
-
-          {/* Botón móvil */}
-          <button className="md:hidden text-white p-2 absolute right-4 top-1/2 -translate-y-1/2">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
-
         </div>
       </div>
     </motion.nav>

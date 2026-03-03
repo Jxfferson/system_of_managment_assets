@@ -41,7 +41,7 @@ const SplashScreen = ({ onComplete }) => {
           animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
           transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
         >
-          OTD AMERICAS
+          OTD SUPPORT
         </motion.h1>
         <motion.div
           className="h-1 bg-gradient-to-r from-[#0EA5E9] to-[#06B6D4] mt-6 rounded-full"

@@ -24,7 +24,7 @@ app.add_middleware(
 # Health check
 @app.get("/")
 def root():
-    return {"message": "🚀 API InventarioColombiaIT funcionando correctamente"}
+    return {"message": "API InventarioColombiaIT funcionando correctamente"}
 
 # Registrar rutas
 app.include_router(almacen.router)
