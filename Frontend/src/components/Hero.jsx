@@ -10,7 +10,6 @@ const Hero = () => {
     });
   };
 
-  // Características (opcional)
   const features = [
     { Icon: ShieldCheck, label: "Secure", color: "from-emerald-400 to-emerald-600" },
     { Icon: Zap, label: "Fast", color: "from-amber-400 to-orange-500" },

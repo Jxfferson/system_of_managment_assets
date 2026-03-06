@@ -23,7 +23,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-# Dependencia para inyectar la sesión en cada request
 def get_db():
     db = SessionLocal()
     try:

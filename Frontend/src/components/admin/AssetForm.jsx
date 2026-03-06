@@ -16,7 +16,6 @@ const AssetForm = ({
   itemPrefixMap = {}
 }) => {
   
-  // Fallback para items hardcoded si no vienen por props
   const fallbackItems = [
     'Teclado ESENSES Basico USB',
     'Mouse Alámbrico HP Óptico negro 100',
@@ -38,11 +37,9 @@ const AssetForm = ({
   const itemsList = availableItems.length > 0 ? availableItems : fallbackItems;
   const prefixes = { ...fallbackPrefixes, ...itemPrefixMap };
   
-  // Obtener prefijo del item seleccionado
   const selectedItem = editingAsset.name;
   const serialPrefix = selectedItem ? (prefixes[selectedItem] || '') : '';
   
-  // Mostrar serial completo (prefijo + número)
   const displaySerial = serialPrefix && nextSerialNumber && !isEditing
     ? `${serialPrefix}${String(nextSerialNumber).padStart(5, '0')}`
     : editingAsset.serial;
@@ -86,12 +83,16 @@ const AssetForm = ({
               ))}
               <option value="__NEW__" className="text-sky-400">+ New item...</option>
             </Select>
-            {/* Input libre para escribir directamente */}
+
             <Input
               type="text"
               value={editingAsset.name}
-              onChange={(e) => setEditingAsset({ ...editingAsset, name: e.target.value, serial: isEditing ? editingAsset.serial : '' })}
-              placeholder="Or type item name..."
+              onChange={(e) => setEditingAsset({ 
+                ...editingAsset, 
+                name: e.target.value, 
+                serial: isEditing ? editingAsset.serial : '' 
+              })}
+              placeholder="Or new type item name..."
               className="mt-2 bg-slate-900"
             />
           </div>
@@ -110,10 +111,10 @@ const AssetForm = ({
           />
         </div>
 
-        {/* FECHA_INGRESO */}
+        {/* Entry Date */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Fecha Ingreso *
+            Entry Date *
           </label>
           <Input
             type="date"
@@ -123,10 +124,10 @@ const AssetForm = ({
           />
         </div>
 
-        {/* FECHA_SALIDA */}
+        {/* Exit Date */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Fecha Salida
+            Exit Date
           </label>
           <Input
             type="date"
@@ -137,10 +138,10 @@ const AssetForm = ({
           />
         </div>
 
-        {/* DESTINO */}
+        {/* Destination */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Destino
+            Destination
           </label>
           <Select
             value={editingAsset.destino || ''}
@@ -158,11 +159,11 @@ const AssetForm = ({
 
       </div>
 
-      {/* Preview del serial */}
+      {/* Serial preview */}
       {!isEditing && selectedItem && nextSerialNumber && (
         <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
           <p className="text-sm text-cyan-400">
-            <span className="font-medium">Serial a generar:</span>{' '}
+            <span className="font-medium">Serial to be generated:</span>{' '}
             <code className="font-mono font-bold">{displaySerial}</code>
           </p>
         </div>
@@ -170,15 +171,15 @@ const AssetForm = ({
 
       {/* Actions */}
       <div className="flex justify-end gap-3 mt-6">
-        <Button onClick={onCancel} variant="outline">
+        <Button onClick={onCancel} variant="outline" className="bg-slate-700 hover:bg-slate-800">
           <X className="w-4 h-4 mr-2" /> Cancel
         </Button>
         <Button 
           onClick={onSave} 
-          className="h-9 px-8 bg-gradient-to-r from-cyan-500 to-blue-600"
+          className="h-9 px-8 bg-gradient-to-r text-white from-cyan-500 to-blue-600"
           disabled={!editingAsset.name || !editingAsset.fecha_ingreso}
         >
-          <Save className="w-4 h-4 mr-2" /> {isEditing ? 'Save Changes' : 'Create Asset'}
+          <Save className="w-4 h-4 mr-2"/> {isEditing ? 'Save Changes' : 'Create Asset'}
         </Button>
       </div>
     </motion.div>

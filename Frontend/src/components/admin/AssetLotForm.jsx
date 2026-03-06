@@ -72,7 +72,6 @@ export default function AssetLotForm({
     
     setIsSavingNewItem(true)
     try {
-      // Solo obtener prefijo del backend
       const response = await fetch(`${API_URL}/api/almacen/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +83,6 @@ export default function AssetLotForm({
       const result = await response.json()
       const prefix = result.serial_prefix || 'ITM'
       
-      // Notificar al padre y seleccionar el item
       if (onItemCreated) onItemCreated(newItemName.trim(), prefix)
       handleChange('item', newItemName.trim())
       
@@ -107,7 +105,7 @@ export default function AssetLotForm({
     ? `${serialPrefix}${String(nextSerialNumber).padStart(5,'0')}` 
     : ''
     
-  const isMainFormValid = selectedItem && lotData.quantity && lotData.fecha_ingreso && parseInt(lotData.quantity) > 0 && !isCreatingNew
+  const isMainFormValid = selectedItem && lotData.quantity && lotData.fecha_ingreso && parseInt(lotData.quantity) > 1 && !isCreatingNew
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -134,8 +132,8 @@ export default function AssetLotForm({
               <Input placeholder="New item name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} autoFocus className="bg-slate-900" />
               <Input placeholder="Prefix (optional)" value={newItemPrefix} onChange={(e) => setNewItemPrefix(e.target.value.toUpperCase().slice(0,6))} maxLength={6} className="bg-slate-900 uppercase" />
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => { setIsCreatingNew(false); setNewItemName(''); setNewItemPrefix('') }} disabled={isSavingNewItem} className="h-8"><X className="w-3 h-3 mr-1"/> Cancel</Button>
-                <Button size="sm" onClick={handleSaveNewItem} disabled={!newItemName.trim() || isSavingNewItem} className="h-8 bg-sky-600">{isSavingNewItem ? '...' : <><Plus className="w-3 h-3 mr-1"/> Create</>}</Button>
+                <Button size="sm" variant="outline" onClick={() => { setIsCreatingNew(false); setNewItemName(''); setNewItemPrefix('') }} disabled={isSavingNewItem} className="h-8 bg-slate-700 hover:bg-slate-800"><X className="w-3 h-3 mr-1"/> Cancel</Button>
+                <Button size="sm" onClick={handleSaveNewItem} disabled={!newItemName.trim() || isSavingNewItem} className=" text-white h-8 bg-sky-600">{isSavingNewItem ? '...' : <><Plus className="w-3 h-3 mr-1"/> Create</>}</Button>
               </div>
             </div>
           )}
@@ -149,7 +147,7 @@ export default function AssetLotForm({
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Quantity *</label>
-            <Input type="number" min="1" value={lotData.quantity} onChange={(e) => handleChange('quantity', e.target.value)} disabled={isCreatingNew} />
+            <Input type="number" min="5" value={lotData.quantity} onChange={(e) => handleChange('quantity', e.target.value)} disabled={isCreatingNew} />
           </div>
 
           <div>
@@ -160,8 +158,14 @@ export default function AssetLotForm({
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
-          <Button variant="outline" onClick={onClose} disabled={isSavingNewItem}><X className="w-4 h-4 mr-2"/> Cancel</Button>
-          <Button onClick={onSave} className="bg-gradient-to-r from-sky-600 to-blue-500" disabled={!isMainFormValid || isCreatingNew || isSavingNewItem}><Save className="w-4 h-4 mr-2"/> Save Lot</Button>
+          <Button 
+            onClick={onClose} 
+            disabled={isSavingNewItem}
+            className="bg-slate-700 hover:bg-slate-800 text-white border-0"
+          >
+            <X className="w-4 h-4 mr-2"/> Cancel
+          </Button>
+          <Button onClick={onSave} className="bg-gradient-to-r from-sky-600 to-blue-500 text-white" disabled={!isMainFormValid || isCreatingNew || isSavingNewItem}><Save className="w-4 h-4 mr-2"/> Save Lot</Button>
         </div>
       </div>
     </div>

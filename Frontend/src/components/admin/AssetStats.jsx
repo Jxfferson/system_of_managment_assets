@@ -17,14 +17,17 @@ const StatCard = ({ title, value, icon: Icon, colorClass, bgClass, subtitle }) =
 );
 
 const AssetStats = ({ assets }) => {
-  // Calcular totales
   const totalAssets = assets.length;
-  
-  // Total Ingresos: assets que tienen fecha_ingreso registrada
-  const totalIngresos = assets.filter(a => a.fecha_ingreso && a.fecha_ingreso.trim() !== '').length;
-  
-  // Total Salidas: assets que tienen fecha_salida registrada
-  const totalSalidas = assets.filter(a => a.fecha_salida && a.fecha_salida.trim() !== '').length;
+
+  // CORRECCIÓN: Usar 'fecha_ingreso' en lugar de 'entry_date'
+  const totalEntries = assets.filter(
+    (a) => a.fecha_ingreso && a.fecha_ingreso.trim() !== ''
+  ).length;
+
+  // CORRECCIÓN: Usar 'fecha_salida' en lugar de 'exit_date'
+  const totalExits = assets.filter(
+    (a) => a.fecha_salida && a.fecha_salida.trim() !== ''
+  ).length;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -36,26 +39,27 @@ const AssetStats = ({ assets }) => {
         icon={Package}
         colorClass="text-slate-300"
         bgClass="bg-slate-500/10"
-        subtitle="Registrados en sistema"
+        subtitle="Registered in the system"
       />
-      
-      {/* Total Ingresos */}
+
+      {/* Total Entries */}
       <StatCard
-        title="Total Ingresos"
-        value={totalIngresos}
+        title="Total Entries"
+        value={totalEntries}
         icon={ArrowDownToLine}
         colorClass="text-emerald-400"
         bgClass="bg-emerald-500/10"
-        subtitle="Con fecha de ingreso"
+        subtitle="With entry date"
       />
-      
-      {/* Total Salidas */}
+
+      {/* Total Exits */}
       <StatCard
-        title="Total Salidas"
-        value={totalSalidas}
+        title="Total Exits"
+        value={totalExits}
         icon={ArrowUpFromLine}
         colorClass="text-amber-400"
         bgClass="bg-amber-500/10"
+        subtitle="With exit date"
       />
       
     </div>

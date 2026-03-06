@@ -22,8 +22,6 @@ class ItemResponse(BaseModel):
     serial_prefix: str
 # ===========================================================
 
-
-# ✅ GET: Items únicos desde ALMACEN
 @router.get("/items", response_model=List[ItemResponse])
 def get_available_items(db: Session = Depends(get_db)):
     try:
@@ -53,8 +51,6 @@ def get_available_items(db: Session = Depends(get_db)):
         print(f"Error: {e}")
         return []
 
-
-# ✅ POST: Solo generar prefijo (NO valida, NO guarda)
 @router.post("/items", response_model=ItemResponse)
 def create_item_type(item: ItemCreate, db: Session = Depends(get_db)):
     prefix = item.serial_prefix
@@ -63,7 +59,7 @@ def create_item_type(item: ItemCreate, db: Session = Depends(get_db)):
     return {"name": item.name, "serial_prefix": prefix.upper()}
 
 
-# ==================== ENDPOINTS PRINCIPALES - SIN VALIDACIONES ====================
+#  ENDPOINTS PRINCIPALES 
 
 @router.get("/", response_model=List[AlmacenResponse])
 def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
@@ -84,7 +80,7 @@ def get_by_id(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No encontrado")
     return item
 
-# ✅ POST PRINCIPAL - GUARDA DIRECTO SIN VALIDAR ITEM
+# POST PRINCIPAL
 @router.post("/", response_model=AlmacenResponse, status_code=201)
 def create(data: AlmacenCreate, db: Session = Depends(get_db)):
     # Guardar directamente, sin validar si el item "existe"
@@ -106,22 +102,14 @@ def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Item no encontrado")
     
-    # Actualizar campos
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(item, field, value)
     
     db.commit()
     db.refresh(item)
-    
-    return {
-        "ID": item.ID,
-        "Item": item.Item,
-        "Serial": item.Serial,
-        "Fecha_Ingreso": item.Fecha_Ingreso,
-        "Fecha_Salida": item.Fecha_Salida,
-        "Destino": item.Destino
-    }
+
+    return item 
 
 @router.delete("/{id}")
 def delete(id: int, db: Session = Depends(get_db)):

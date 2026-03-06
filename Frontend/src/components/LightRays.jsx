@@ -265,7 +265,7 @@ void main() {
           return;
         }
 
-        // Solo renderizar si el componente es visible
+        // Solo se va a renderizar si el componente es visible
         if (isVisible) {
           uniforms.iTime.value = t * 0.001;
 
