@@ -16,9 +16,7 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
 
   const clearFilters = () => {
     setFilters({ 
-      name: '', 
       serial: '', 
-      date: '', 
       fechaEntrada: '', 
       fechaSalida: '', 
       destino: '', 

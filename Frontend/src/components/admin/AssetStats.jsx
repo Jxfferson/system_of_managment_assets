@@ -17,20 +17,22 @@ const StatCard = ({ title, value, icon: Icon, colorClass, bgClass, subtitle }) =
 );
 
 const AssetStats = ({ assets }) => {
-  const totalAssets = assets.length;
-  // Usamos 'fecha_entrada'
-  const totalEntries = assets.filter(
-    (a) => a.fecha_ingreso && a.fecha_ingreso.trim() !== ''
-  ).length;
 
-  // Usamos 'fecha_salida'
+  const totalAssets = assets.length;
+
+  // Assets que tienen salida
   const totalExits = assets.filter(
     (a) => a.fecha_salida && a.fecha_salida.trim() !== ''
   ).length;
 
+  // Assets que siguen dentro (sin salida)
+  const totalEntries = assets.filter(
+    (a) => !a.fecha_salida || a.fecha_salida.trim() === ''
+  ).length;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      
+
       <StatCard
         title="Total Assets"
         value={totalAssets}
@@ -41,12 +43,12 @@ const AssetStats = ({ assets }) => {
       />
 
       <StatCard
-        title="Total Entries"
+        title="Total Stock"
         value={totalEntries}
         icon={ArrowDownToLine}
         colorClass="text-emerald-400"
         bgClass="bg-emerald-500/10"
-        subtitle="With entry date"
+        subtitle="Currently in inventory"
       />
 
       <StatCard
@@ -57,7 +59,7 @@ const AssetStats = ({ assets }) => {
         bgClass="bg-amber-500/10"
         subtitle="With exit date"
       />
-      
+
     </div>
   );
 };

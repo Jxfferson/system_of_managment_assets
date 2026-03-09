@@ -10,7 +10,7 @@ import AssetForm     from '@/components/admin/AssetForm';
 import AssetTable    from '@/components/admin/AssetTable';
 import ExportMenu    from '@/components/admin/ExportMenu';
 import AssetLotForm  from '@/components/admin/AssetLotForm';
-
+import { toast } from '@/components/ui/use-toast';
 import {
   getAssets,
   createAsset,
@@ -68,10 +68,9 @@ const AdminPage = () => {
   const [showFilters, setShowFilters]   = useState(false);
   const [editingAsset, setEditingAsset] = useState(initialAsset);
   const [lotData, setLotData]           = useState(initialLotData);
+  
   const [filters, setFilters] = useState({ 
-    name: '', 
     serial: '', 
-    date: '', 
     destino: '', 
     item: '',
     fechaEntrada: '', 
@@ -79,7 +78,6 @@ const AdminPage = () => {
   });
   
   const [itemPrefixMap, setItemPrefixMap] = useState(DEFAULT_PREFIXES);
-  const [debugMessage, setDebugMessage] = useState('');
 
   const navigate = useNavigate();
 
@@ -100,7 +98,11 @@ const AdminPage = () => {
       });
       setItemPrefixMap(prefixMap);
     } catch (err) {
-      alert('Error al cargar activos: ' + err.message);
+      toast({
+        title: "Error",
+        description: 'Error al cargar activos: ' + err.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -112,65 +114,66 @@ const AdminPage = () => {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      console.log('AdminPage - Tecla:', event.key, 'Ctrl:', event.ctrlKey, 'Alt:', event.altKey);
-      
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
-        console.log('Atajo: Ctrl+Alt+N - Nuevo Activo');
-        setDebugMessage('➕ Nuevo Activo');
+        toast({ title: "Nuevo Activo" });
         setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
         setShowForm(true);
-        setTimeout(() => setDebugMessage(''), 2000);
       }
 
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'l') {
         event.preventDefault();
-        console.log('Atajo: Ctrl+Alt+L - Nuevo Lote');
-        setDebugMessage('📦 Nuevo Lote');
+        toast({ title: "Nuevo Lote" });
         setShowLotForm(true);
-        setTimeout(() => setDebugMessage(''), 2000);
       }
 
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        console.log('Atajo: Ctrl+Alt+F - Toggle Filtros');
-        setDebugMessage('🔍 Filtros');
+        toast({ title: "Filtros" });
         setShowFilters(prev => !prev);
-        setTimeout(() => setDebugMessage(''), 2000);
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 's') {
-        event.preventDefault();
-        console.log('Atajo: Ctrl+Alt+S - Guardar');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    console.log('AdminPage - Listener registrado');
-    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      console.log('AdminPage - Listener removido');
     };
   }, []);
 
-  const filteredAssets = assets.filter(asset =>
-    (filters.name    === '' || asset.name?.toLowerCase().includes(filters.name.toLowerCase())) &&
-    (filters.serial  === '' || asset.serial?.toLowerCase().includes(filters.serial.toLowerCase())) &&
-    (filters.date    === '' || asset.fecha_ingreso === filters.date) &&
-    (filters.destino === '' || asset.destino?.toLowerCase().includes(filters.destino.toLowerCase())) &&
-    (filters.item    === '' || asset.name === filters.item) &&
-    (filters.fechaEntrada === '' || (asset.fecha_ingreso && asset.fecha_ingreso === filters.fechaEntrada)) &&
-    (filters.fechaSalida === '' || (asset.fecha_salida && asset.fecha_salida === filters.fechaSalida))
-  );
+  const compareDates = (date1, date2) => {
+    if (!date1 || !date2) return false;
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+  };
+
+  const filteredAssets = assets.filter(asset => {
+    const matchSerial = filters.serial === '' || 
+      (asset.serial && asset.serial.toLowerCase().includes(filters.serial.toLowerCase()));
+    const matchDestino = filters.destino === '' || 
+      (asset.destino && asset.destino.toLowerCase().includes(filters.destino.toLowerCase()));
+    const matchItem = filters.item === '' || asset.name === filters.item;
+
+    let matchFechaEntrada = true;
+    if (filters.fechaEntrada !== '') matchFechaEntrada = compareDates(asset.fecha_ingreso, filters.fechaEntrada);
+    
+    let matchFechaSalida = true;
+    if (filters.fechaSalida !== '') matchFechaSalida = compareDates(asset.fecha_salida, filters.fechaSalida);
+
+    return matchSerial && matchDestino && matchItem && matchFechaEntrada && matchFechaSalida;
+  });
 
   const handleLogin = (e) => {
     e.preventDefault();
     if (password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
       setError('');
+      toast({ title: "Bienvenido", description: "Ingreso exitoso" });
     } else {
       setError('Incorrect password');
+      toast({ title: "Error", description: "Contraseña incorrecta", variant: "destructive" });
     }
   };
 
@@ -178,12 +181,7 @@ const AdminPage = () => {
     setIsAuthenticated(false);
     setPassword('');
     navigate('/');
-  };
-
-  const extractSerialNumber = (serial, prefix) => {
-    if (!serial?.startsWith(prefix)) return null;
-    const numPart = serial.replace(prefix, '').replace(/[^0-9]/g, '');
-    return numPart ? parseInt(numPart, 10) : null;
+    toast({ title: "Logout", description: "Sesión cerrada" });
   };
 
   const getNextSerialNumberByItem = (itemName) => {
@@ -207,7 +205,7 @@ const AdminPage = () => {
 
   const handleSave = async (updateSerial = false) => {
     if (!editingAsset.name || !editingAsset.fecha_ingreso) {
-      alert('Item and Fecha Ingreso are required');
+      toast({ title: "Error", description: "Item and Fecha Ingreso are required", variant: "destructive" });
       return;
     }
 
@@ -217,10 +215,8 @@ const AdminPage = () => {
       const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
       const nextNum = getNextSerialNumberByItem(editingAsset.name);
       finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
-    }
-    else if (updateSerial) {
+    } else if (updateSerial) {
       const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
-      
       if (oldAsset && oldAsset.name !== editingAsset.name) {
         const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
         const nextNum = getNextSerialNumberByItem(editingAsset.name);
@@ -229,49 +225,43 @@ const AdminPage = () => {
     }
 
     try {
-      if (editingAsset.id) {
-        await updateAsset(finalAsset);
-      } else {
-        await createAsset(finalAsset);
-      }
+      if (editingAsset.id) await updateAsset(finalAsset);
+      else await createAsset(finalAsset);
+
       await loadAssets();
       setShowForm(false);
       setEditingAsset(initialAsset);
+      toast({ title: "Éxito", description: "Activo guardado correctamente" });
     } catch (err) {
-      console.error('Error saving:', err);
-      alert('Error al guardar: ' + err.message);
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
   const handleSaveLot = async () => {
     if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
-      alert('Item, Quantity and Fecha Ingreso are required');
+      toast({ title: "Error", description: "Item, Quantity and Fecha Ingreso are required", variant: "destructive" });
       return;
     }
+
     const quantity = parseInt(lotData.quantity);
-    if (quantity <= 5 || quantity > 999) {
-      alert('Quantity must be between 5 and 999');
+    if (quantity <= 4 || quantity > 999) {
+      toast({ title: "Error", description: "Quantity must be between 5 and 999", variant: "destructive" });
       return;
     }
 
     const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
-
     let nextSerialNum = getNextSerialNumberByItem(lotData.item);
-    const newAssets   = [];
+    const newAssets = [];
 
     for (let i = 0; i < quantity; i++) {
       const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
       if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
-      newAssets.push({
-        name: lotData.item, serial,
-        fecha_ingreso: lotData.fecha_ingreso,
-        fecha_salida: '', destino: '',
-      });
+      newAssets.push({ name: lotData.item, serial, fecha_ingreso: lotData.fecha_ingreso, fecha_salida: '', destino: '' });
       nextSerialNum++;
     }
 
     if (newAssets.length === 0) {
-      alert('Could not add any assets. Serials may already exist.');
+      toast({ title: "Error", description: "Could not add any assets. Serials may already exist.", variant: "destructive" });
       return;
     }
 
@@ -280,9 +270,9 @@ const AdminPage = () => {
       await loadAssets();
       setShowLotForm(false);
       setLotData(initialLotData);
-      alert(`Successfully added ${newAssets.length} "${lotData.item}" to inventory!`);
+      toast({ title: "Assets added", description: `${newAssets.length} ${lotData.item} added to inventory` });
     } catch (err) {
-      alert('Error al guardar lote: ' + err.message);
+      toast({ title: "Error", description: "There was a problem saving the asset.", variant: "destructive" });
     }
   };
 
@@ -291,8 +281,9 @@ const AdminPage = () => {
     try {
       await deleteAsset(id);
       await loadAssets();
+      toast({ title: "Activo eliminado" });
     } catch (err) {
-      alert('Error al eliminar: ' + err.message);
+      toast({ title: "Error", description: 'Error al eliminar: ' + err.message, variant: "destructive" });
     }
   };
 
@@ -315,12 +306,6 @@ const AdminPage = () => {
   return (
     <div className="min-h-screen px-6 pb-12">
       <div className="container mx-auto max-w-6xl">
-
-        {debugMessage && (
-          <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm z-[100]">
-            {debugMessage}
-          </div>
-        )}
 
         <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
           <h1 className="text-3xl font-bold text-white">Asset Management</h1>
@@ -393,9 +378,7 @@ const AdminPage = () => {
           nextSerialNumber={getNextSerialNumberByItem(lotData.item)}
           initialItems={Object.keys(itemPrefixMap)}
           initialPrefixMap={itemPrefixMap}
-          onItemCreated={(name, prefix) => {
-            setItemPrefixMap(prev => ({ ...prev, [name]: prefix }));
-          }}
+          onItemCreated={(name, prefix) => setItemPrefixMap(prev => ({ ...prev, [name]: prefix }))}
         />
 
         <AssetTable
