@@ -26,7 +26,7 @@ const getAnchorAndDir = (origin, w, h) => {
       return { anchor: [0.5 * w, (1 + outside) * h], dir: [0, -1] };
     case 'bottom-right':
       return { anchor: [w, (1 + outside) * h], dir: [0, -1] };
-    default: // "top-center"
+    default:
       return { anchor: [0.5 * w, -outside * h], dir: [0, 1] };
   }
 };
@@ -93,7 +93,6 @@ const LightRays = ({
 
       if (!containerRef.current) return;
 
-      // Reducir DPR para mejorar rendimiento
       const renderer = new Renderer({
         dpr: Math.min(window.devicePixelRatio, 1.5),
         alpha: true
@@ -265,7 +264,6 @@ void main() {
           return;
         }
 
-        // Solo se va a renderizar si el componente es visible
         if (isVisible) {
           uniforms.iTime.value = t * 0.001;
 

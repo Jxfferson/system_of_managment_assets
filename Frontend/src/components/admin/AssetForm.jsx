@@ -56,7 +56,6 @@ const AssetForm = ({
       
       <div className="grid md:grid-cols-2 gap-4">
         
-        {/* ITEM */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Item *
@@ -98,7 +97,6 @@ const AssetForm = ({
           </div>
         </div>
 
-        {/* SERIAL */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Serial {isEditing ? '' : '(auto-generated)'}
@@ -111,7 +109,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* Entry Date */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Entry Date *
@@ -124,7 +121,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* Exit Date */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Exit Date
@@ -138,7 +134,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* Destination */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Destination
@@ -159,7 +154,6 @@ const AssetForm = ({
 
       </div>
 
-      {/* Serial preview */}
       {!isEditing && selectedItem && nextSerialNumber && (
         <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
           <p className="text-sm text-cyan-400">
@@ -169,7 +163,6 @@ const AssetForm = ({
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex justify-end gap-3 mt-6">
         <Button onClick={onCancel} variant="outline" className="bg-slate-700 hover:bg-slate-800">
           <X className="w-4 h-4 mr-2" /> Cancel

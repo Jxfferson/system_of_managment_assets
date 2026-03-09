@@ -2,7 +2,6 @@ import API_URL from './api.config';
 
 const BASE = `${API_URL}/api/almacen`;
 
-// Mapea los campos del backend → frontend
 const mapFromAPI = (item) => ({
   id:            String(item.ID),
   name:          item.Item,
@@ -12,7 +11,6 @@ const mapFromAPI = (item) => ({
   destino:       item.Destino       || '',
 });
 
-// Mapea los campos del frontend → backend
 const mapToAPI = (asset) => ({
   Item:          asset.name,
   Serial:        asset.serial        || null,
@@ -21,7 +19,6 @@ const mapToAPI = (asset) => ({
   Destino:       asset.destino       || null,
 });
 
-// GET /api/almacen  (con búsqueda opcional)
 export const getAssets = async (search = '') => {
   const url = search ? `${BASE}?search=${encodeURIComponent(search)}` : BASE;
   const res = await fetch(url);
@@ -30,7 +27,6 @@ export const getAssets = async (search = '') => {
   return data.map(mapFromAPI);
 };
 
-// POST /api/almacen
 export const createAsset = async (asset) => {
   const res = await fetch(BASE, {
     method:  'POST',
@@ -41,13 +37,26 @@ export const createAsset = async (asset) => {
   return await res.json();
 };
 
-// POST múltiple (lote)
 export const createAssetLot = async (assets) => {
   const results = await Promise.all(assets.map(createAsset));
   return results;
 };
 
-// PUT /api/almacen/:id
+export const createAssetLotBulk = async (assets) => {
+  const res = await fetch(`${BASE}/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      items: assets.map(mapToAPI)  
+    }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || 'Error al crear lote masivo');
+  }
+  return await res.json();
+};
+
 export const updateAsset = async (asset) => {
   const res = await fetch(`${BASE}/${asset.id}`, {
     method:  'PUT',
@@ -58,7 +67,6 @@ export const updateAsset = async (asset) => {
   return await res.json();
 };
 
-// DELETE /api/almacen/:id
 export const deleteAsset = async (id) => {
   const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Error al eliminar activo');

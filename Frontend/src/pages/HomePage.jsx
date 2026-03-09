@@ -5,7 +5,6 @@ import Hero from '@/components/Hero';
 import ScheduleSupport from '@/components/ScheduleSupport';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
-// Lazy load secciones no críticas
 const ContactUs = lazy(() => import('@/components/ContactUs'));
 const TermsConditions = lazy(() => import('@/components/TermsConditions'));
 

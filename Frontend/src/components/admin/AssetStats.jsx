@@ -18,13 +18,12 @@ const StatCard = ({ title, value, icon: Icon, colorClass, bgClass, subtitle }) =
 
 const AssetStats = ({ assets }) => {
   const totalAssets = assets.length;
-
-  // CORRECCIÓN: Usar 'fecha_ingreso' en lugar de 'entry_date'
+  // Usamos 'fecha_entrada'
   const totalEntries = assets.filter(
     (a) => a.fecha_ingreso && a.fecha_ingreso.trim() !== ''
   ).length;
 
-  // CORRECCIÓN: Usar 'fecha_salida' en lugar de 'exit_date'
+  // Usamos 'fecha_salida'
   const totalExits = assets.filter(
     (a) => a.fecha_salida && a.fecha_salida.trim() !== ''
   ).length;
@@ -32,7 +31,6 @@ const AssetStats = ({ assets }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       
-      {/* Total Assets */}
       <StatCard
         title="Total Assets"
         value={totalAssets}
@@ -42,7 +40,6 @@ const AssetStats = ({ assets }) => {
         subtitle="Registered in the system"
       />
 
-      {/* Total Entries */}
       <StatCard
         title="Total Entries"
         value={totalEntries}
@@ -52,7 +49,6 @@ const AssetStats = ({ assets }) => {
         subtitle="With entry date"
       />
 
-      {/* Total Exits */}
       <StatCard
         title="Total Exits"
         value={totalExits}

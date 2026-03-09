@@ -6,7 +6,6 @@ const AnimatedBackground = () => {
     <div className="fixed inset-0 -z-10 overflow-hidden bg-[#0A0B1A]">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-[#13113C] via-[#0A0B1A] to-[#0A0B1A]" />
       
-      {/* Se reduce el blur y animación solo con transform */}
       <motion.div
         className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-purple-600/10"
         style={{ filter: 'blur(60px)', willChange: 'transform' }}

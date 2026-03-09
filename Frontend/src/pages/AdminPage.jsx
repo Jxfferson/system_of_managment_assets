@@ -17,6 +17,7 @@ import {
   createAssetLot,
   updateAsset,
   deleteAsset,
+  createAssetLotBulk,
 } from '@/services/almacenService';
 
 const ADMIN_PASSWORD = 'admin123';
@@ -109,12 +110,10 @@ const AdminPage = () => {
     if (isAuthenticated) loadAssets();
   }, [isAuthenticated]);
 
-  // 👇 ATAJOS DE TECLADO (mismo patrón que ExportMenu)
   useEffect(() => {
     const handleKeyDown = (event) => {
       console.log('AdminPage - Tecla:', event.key, 'Ctrl:', event.ctrlKey, 'Alt:', event.altKey);
       
-      // Ctrl + Alt + N → Nuevo Activo
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
         console.log('Atajo: Ctrl+Alt+N - Nuevo Activo');
@@ -124,7 +123,6 @@ const AdminPage = () => {
         setTimeout(() => setDebugMessage(''), 2000);
       }
 
-      // Ctrl + Alt + L → Nuevo Lote
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'l') {
         event.preventDefault();
         console.log('Atajo: Ctrl+Alt+L - Nuevo Lote');
@@ -133,7 +131,6 @@ const AdminPage = () => {
         setTimeout(() => setDebugMessage(''), 2000);
       }
 
-      // Ctrl + Alt + F → Toggle Filtros
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
         console.log('Atajo: Ctrl+Alt+F - Toggle Filtros');
@@ -142,11 +139,9 @@ const AdminPage = () => {
         setTimeout(() => setDebugMessage(''), 2000);
       }
 
-      // Ctrl + Alt + S → Guardar (si hay formulario abierto)
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 's') {
         event.preventDefault();
         console.log('Atajo: Ctrl+Alt+S - Guardar');
-        // El guardado se maneja dentro de AssetForm/AssetLotForm
       }
     };
 
@@ -281,7 +276,7 @@ const AdminPage = () => {
     }
 
     try {
-      await createAssetLot(newAssets);
+      await createAssetLotBulk(newAssets);
       await loadAssets();
       setShowLotForm(false);
       setLotData(initialLotData);
@@ -321,7 +316,6 @@ const AdminPage = () => {
     <div className="min-h-screen px-6 pb-12">
       <div className="container mx-auto max-w-6xl">
 
-        {/* 👇 Notificación de atajo */}
         {debugMessage && (
           <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm z-[100]">
             {debugMessage}

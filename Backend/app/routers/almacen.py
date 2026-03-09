@@ -11,8 +11,6 @@ from app.schemas.almacen import AlmacenCreate, AlmacenUpdate, AlmacenResponse
 
 router = APIRouter(prefix="/api/almacen", tags=["Almacen"])
 
-
-# ==================== SCHEMAS ====================
 class ItemCreate(BaseModel):
     name: str
     serial_prefix: Optional[str] = None
@@ -20,43 +18,38 @@ class ItemCreate(BaseModel):
 class ItemResponse(BaseModel):
     name: str
     serial_prefix: str
-# ===========================================================
 
+class AlmacenBulkCreate(BaseModel):
+    items: List[AlmacenCreate]
 @router.get("/items", response_model=List[ItemResponse])
 def get_available_items(db: Session = Depends(get_db)):
     try:
         result = db.execute(text("""
-            SELECT DISTINCT Item FROM ALMACEN 
-            WHERE Item IS NOT NULL AND Item != '' 
-            ORDER BY Item ASC
+            WITH first_serials AS (
+                SELECT Item, Serial,
+                       ROW_NUMBER() OVER (PARTITION BY Item ORDER BY ID) as rn
+                FROM ALMACEN 
+                WHERE Item IS NOT NULL AND Item != '' AND Serial IS NOT NULL AND Serial != ''
+            )
+            SELECT DISTINCT a.Item, fs.Serial
+            FROM ALMACEN a
+            LEFT JOIN first_serials fs ON a.Item = fs.Item AND fs.rn = 1
+            WHERE a.Item IS NOT NULL AND a.Item != ''
+            ORDER BY a.Item ASC
         """))
-        items_names = [row[0] for row in result.fetchall()]
         
         response_items = []
-        for item_name in items_names:
-            serial_result = db.execute(text("""
-                SELECT Serial FROM ALMACEN 
-                WHERE Item = :item AND Serial IS NOT NULL AND Serial != ''
-                LIMIT 1
-            """), {"item": item_name})
-            serial_row = serial_result.first()
+        for item_name, serial in result.fetchall():
             prefix = "ITM"
-            if serial_row and serial_row[0]:
-                match = re.match(r'^([A-Za-z]+)', serial_row[0])
+            if serial:
+                match = re.match(r'^([A-Za-z]+)', serial)
                 if match:
                     prefix = match.group(1).upper()
             response_items.append({"name": item_name, "serial_prefix": prefix})
         return response_items
     except Exception as e:
         print(f"Error: {e}")
-        return []
-
-@router.post("/items", response_model=ItemResponse)
-def create_item_type(item: ItemCreate, db: Session = Depends(get_db)):
-    prefix = item.serial_prefix
-    if not prefix:
-        prefix = ''.join(c for c in item.name.upper() if c.isalnum())[:6] or 'ITM'
-    return {"name": item.name, "serial_prefix": prefix.upper()}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 #  ENDPOINTS PRINCIPALES 
@@ -83,7 +76,6 @@ def get_by_id(id: int, db: Session = Depends(get_db)):
 # POST PRINCIPAL
 @router.post("/", response_model=AlmacenResponse, status_code=201)
 def create(data: AlmacenCreate, db: Session = Depends(get_db)):
-    # Guardar directamente, sin validar si el item "existe"
     nuevo = Almacen(
         Item=data.Item,
         Serial=data.Serial,
@@ -95,6 +87,40 @@ def create(data: AlmacenCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nuevo)
     return nuevo
+
+@router.post("/bulk", status_code=201)
+def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
+    try:
+        seriales = [item.Serial for item in data.items if item.Serial]
+        if len(seriales) != len(set(seriales)):
+            raise HTTPException(status_code=400, detail="Hay seriales duplicados en el lote")
+        
+        existentes = db.execute(
+            text("SELECT Serial FROM ALMACEN WHERE Serial IN :seriales"),
+            {"seriales": tuple(seriales)}
+        ).fetchall()
+        
+        if existentes:
+            duplicados = [s[0] for s in existentes]
+            raise HTTPException(status_code=400, detail=f"Seriales ya existen: {', '.join(duplicados[:5])}")
+        
+        db.bulk_insert_mappings(Almacen, [
+            {
+                "Item": item.Item,
+                "Serial": item.Serial,
+                "Fecha_Ingreso": item.Fecha_Ingreso,
+                "Fecha_Salida": item.Fecha_Salida,
+                "Destino": item.Destino
+            } for item in data.items
+        ])
+        db.commit()
+        return {"message": f"{len(data.items)} registros creados", "count": len(data.items)}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{id}", response_model=AlmacenResponse)
 def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
@@ -108,7 +134,6 @@ def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
     
     db.commit()
     db.refresh(item)
-
     return item 
 
 @router.delete("/{id}")

@@ -3,22 +3,17 @@ import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square
 import { Button } from '@/components/ui/button';
 
 const ITEMS_PER_PAGE = 50;
-
-// Componente Modal de Confirmación Personalizado
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Eliminar", cancelText = "Cancelar", variant = "destructive" }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop con blur */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onCancel}
       />
       
-      {/* Modal */}
       <div className="relative bg-slate-900 border border-white/10 rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in fade-in zoom-in duration-200">
-        {/* Close button */}
         <button 
           onClick={onCancel}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
@@ -26,9 +21,7 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
           <X className="w-5 h-5" />
         </button>
 
-        {/* Content */}
         <div className="p-6">
-          {/* Icon */}
           <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
             variant === "destructive" ? "bg-red-500/10" : "bg-cyan-500/10"
           }`}>
@@ -37,17 +30,14 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
             }`} />
           </div>
 
-          {/* Title */}
           <h3 className="text-xl font-semibold text-white mb-2">
             {title}
           </h3>
 
-          {/* Message */}
           <p className="text-slate-400 text-sm mb-6">
             {message}
           </p>
 
-          {/* Actions */}
           <div className="flex gap-3">
             <Button
               variant="outline"
@@ -76,8 +66,6 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
 const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState([]);
-  
-  // Estados para el modal de confirmación
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
@@ -99,7 +87,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
   const handlePrevPage = () => currentPage > 1 && setCurrentPage(p => p - 1);
   const handleNextPage = () => currentPage < totalPages && setCurrentPage(p => p + 1);
 
-  // --- Lógica de Selección ---
   const isSelected = (id) => selectedIds.includes(id);
 
   const toggleSelectOne = (id) => {
@@ -121,7 +108,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
 
   const isAllSelected = currentAssets.length > 0 && currentAssets.every(a => selectedIds.includes(a.id));
 
-  // --- Mostrar Modal de Confirmación ---
   const showConfirmModal = ({ title, message, onConfirm, variant = 'destructive' }) => {
     setConfirmModal({
       isOpen: true,
@@ -136,7 +122,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  // --- Lógica de Eliminación ---
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
 
@@ -156,7 +141,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
     });
   };
 
-  // Eliminar un solo elemento con modal
   const handleDeleteSingle = (id) => {
     showConfirmModal({
       title: 'Eliminar elemento',
@@ -186,7 +170,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
   return (
     <div className="bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden">
       
-      {/* Modal de Confirmación */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -196,7 +179,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
         variant={confirmModal.variant}
       />
 
-      {/* Header de la Tabla */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-4">
         <h3 className="text-lg font-semibold text-white">Assets</h3>
         
@@ -223,7 +205,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
         </div>
       </div>
 
-      {/* Tabla */}
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-slate-800/50">
@@ -317,7 +298,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
         </table>
       </div>
 
-      {/* Paginación */}
       {totalPages > 1 && (
         <div className="border-t border-white/10 bg-slate-800/30 px-6 py-4">
           <div className="flex items-center justify-between flex-wrap gap-3">

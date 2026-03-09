@@ -20,7 +20,6 @@ const Hero = () => {
     <section id="home" className="relative min-h-screen flex items-start justify-center overflow-hidden pt-24 pb-16">
       <div className="container mx-auto px-6 z-10">
         <div className="max-w-5xl mx-auto text-center">
-          {/* Título */}
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -33,7 +32,6 @@ const Hero = () => {
           </span>
           </motion.h1>
 
-          {/* Descripción */}
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -44,7 +42,6 @@ const Hero = () => {
             Agents can request assistance for faulty equipment. We track every asset with unique entry and exit serials, ensuring full visibility from reception to resolution.
           </motion.p>
 
-          {/* Botón */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -61,7 +58,6 @@ const Hero = () => {
             </button>
           </motion.div>
 
-          {/* Características (opcional) - descomentar si se desea mostrar */}
           {false && (
             <div className="flex flex-wrap justify-center gap-6 mt-12">
               {features.map((feature, index) => (
@@ -81,7 +77,6 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* Elementos decorativos */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cyan-900/10 to-transparent" />
     </section>

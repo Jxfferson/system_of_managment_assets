@@ -73,7 +73,7 @@ export default function AssetManager() {
     setIsModalOpen(false)
     setLotData({ item: '', quantity: '', fecha_ingreso: new Date().toISOString().split('T')[0] })
     await loadAssets()
-    await loadItems() // ← Esto hace que el nuevo item aparezca la próxima vez
+    await loadItems()
     setNextSerial(p => p + qty)
   }
 
