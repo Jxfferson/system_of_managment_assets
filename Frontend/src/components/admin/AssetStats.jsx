@@ -20,12 +20,10 @@ const AssetStats = ({ assets }) => {
 
   const totalAssets = assets.length;
 
-  // Assets que tienen salida
   const totalExits = assets.filter(
     (a) => a.fecha_salida && a.fecha_salida.trim() !== ''
   ).length;
 
-  // Assets que siguen dentro (sin salida)
   const totalEntries = assets.filter(
     (a) => !a.fecha_salida || a.fecha_salida.trim() === ''
   ).length;

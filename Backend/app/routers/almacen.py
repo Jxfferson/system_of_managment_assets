@@ -52,7 +52,7 @@ def get_available_items(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-#  ENDPOINTS PRINCIPALES 
+
 
 @router.get("/", response_model=List[AlmacenResponse])
 def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
@@ -73,7 +73,7 @@ def get_by_id(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No encontrado")
     return item
 
-# POST PRINCIPAL
+
 @router.post("/", response_model=AlmacenResponse, status_code=201)
 def create(data: AlmacenCreate, db: Session = Depends(get_db)):
     nuevo = Almacen(

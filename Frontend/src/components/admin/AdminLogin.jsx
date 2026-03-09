@@ -3,15 +3,16 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react'; 
+import { Eye, EyeOff } from 'lucide-react';
 
-const AdminLogin = ({ password, setPassword, error, onLogin }) => {
+const AdminLogin = ({ onLogin, error }) => {
   const navigate = useNavigate();
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onLogin) onLogin(e);
+    onLogin(password);
   };
 
   return (
@@ -35,7 +36,6 @@ const AdminLogin = ({ password, setPassword, error, onLogin }) => {
         <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto">
           <div>
             <label className="text-sm font-medium text-slate-300 mb-3 block">Password</label>
-            
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
@@ -45,18 +45,12 @@ const AdminLogin = ({ password, setPassword, error, onLogin }) => {
                 className="w-full h-14 text-base bg-slate-800/50 border-white/20 focus:border-cyan-500 focus:ring-cyan-500/20 rounded-xl pr-12"
                 autoFocus
               />
-              
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-cyan-700 transition-colors cursor-pointer"
-                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>

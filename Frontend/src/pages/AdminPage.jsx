@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Filter, LogOut, Layers } from 'lucide-react';
+import { Plus, Filter, LogOut, Layers, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,16 +11,18 @@ import AssetTable    from '@/components/admin/AssetTable';
 import ExportMenu    from '@/components/admin/ExportMenu';
 import AssetLotForm  from '@/components/admin/AssetLotForm';
 import { toast } from '@/components/ui/use-toast';
+
+// Nuevas importaciones
+import { verifyPassword } from '@/utils/passwordLocal';
+import ChangePasswordModal from '@/components/admin/ChangePasswordModal';
+
 import {
   getAssets,
   createAsset,
-  createAssetLot,
   updateAsset,
   deleteAsset,
   createAssetLotBulk,
 } from '@/services/almacenService';
-
-const ADMIN_PASSWORD = 'admin123';
 
 const DEFAULT_ITEMS = [
   'Teclado ESENSES Basico USB',
@@ -58,8 +60,7 @@ const initialLotData = {
 
 const AdminPage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword]               = useState('');
-  const [error, setError]                     = useState('');
+  const [error, setError] = useState('');
 
   const [assets, setAssets]             = useState([]);
   const [loading, setLoading]           = useState(false);
@@ -78,6 +79,7 @@ const AdminPage = () => {
   });
   
   const [itemPrefixMap, setItemPrefixMap] = useState(DEFAULT_PREFIXES);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const navigate = useNavigate();
 
@@ -165,9 +167,9 @@ const AdminPage = () => {
     return matchSerial && matchDestino && matchItem && matchFechaEntrada && matchFechaSalida;
   });
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
+  // Login usando verifyPassword
+  const handleLogin = (enteredPassword) => {
+    if (verifyPassword(enteredPassword)) {
       setIsAuthenticated(true);
       setError('');
       toast({ title: "Bienvenido", description: "Ingreso exitoso" });
@@ -179,9 +181,12 @@ const AdminPage = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setPassword('');
     navigate('/');
     toast({ title: "Logout", description: "Sesión cerrada" });
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    toast({ title: "Password changed", description: "Admin password updated successfully." });
   };
 
   const getNextSerialNumberByItem = (itemName) => {
@@ -295,10 +300,8 @@ const AdminPage = () => {
   if (!isAuthenticated) {
     return (
       <AdminLogin
-        password={password}
-        setPassword={setPassword}
-        error={error}
         onLogin={handleLogin}
+        error={error}
       />
     );
   }
@@ -334,6 +337,16 @@ const AdminPage = () => {
               <Filter className="w-4 h-4 mr-2" /> Filter
             </Button>
             <ExportMenu filteredAssets={filteredAssets} />
+
+            {}
+            <Button 
+              onClick={() => setShowChangePasswordModal(true)} 
+              variant="outline"
+              title="Change Admin Password"
+            >
+              <Lock className="w-4 h-4 mr-2" /> Change Password
+            </Button>
+
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="w-4 h-4 mr-2" /> Logout
             </Button>
@@ -385,6 +398,13 @@ const AdminPage = () => {
           assets={filteredAssets}
           onEdit={handleEdit}
           onDelete={handleDelete}
+        />
+
+        {}
+        <ChangePasswordModal
+          isOpen={showChangePasswordModal}
+          onClose={() => setShowChangePasswordModal(false)}
+          onSuccess={handlePasswordChangeSuccess}
         />
 
       </div>
