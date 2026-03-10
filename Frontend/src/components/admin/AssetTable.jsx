@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, X } from 'lucide-react';
+import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ITEMS_PER_PAGE = 50;
+
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Eliminar", cancelText = "Cancelar", variant = "destructive" }) => {
   if (!isOpen) return null;
 
@@ -153,6 +154,29 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
     });
   };
 
+  const getReturnTypeBadge = (tipo) => {
+    if (!tipo) return null;
+    
+    const styles = {
+      'Retorno': 'bg-green-500/20 text-green-400 border-green-500/30',
+      'Perdida': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      'Daño': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+    };
+
+    const icons = {
+      'Retorno': '🔄',
+      'Perdida': '❓',
+      'Daño': '⚠️'
+    };
+
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${styles[tipo] || 'bg-slate-700 text-slate-300'}`}>
+        <span>{icons[tipo] || ''}</span>
+        {tipo}
+      </span>
+    );
+  };
+
   if (assets.length === 0) {
     return (
       <div className="bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden">
@@ -196,7 +220,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
               size="sm"
               onClick={handleBulkDelete}
               className="bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-500/20"
-              from-sky-600 to-blue-500
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Eliminar ({selectedIds.length})
@@ -206,10 +229,21 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left">
+        <table className="w-full text-left table-fixed">
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-1/4" />
+            <col className="w-32" />
+            <col className="w-32" />
+            <col className="w-32" />
+            <col className="w-32" />
+            <col className="w-1/4" />
+            <col className="w-40" />
+            <col className="w-24" />
+          </colgroup>
           <thead className="bg-slate-800/50">
             <tr>
-              <th className="px-4 py-3 w-10">
+              <th className="px-4 py-3">
                 <button 
                   onClick={toggleSelectAll}
                   className="flex items-center justify-center text-slate-400 hover:text-cyan-400 transition-colors"
@@ -225,6 +259,8 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Serial</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Entry Date</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Exit Date</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Return Type</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Observations</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Destination</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Actions</th>
             </tr>
@@ -253,12 +289,22 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     </button>
                   </td>
 
-                  <td className="px-4 py-3 text-white font-medium text-sm">
-                    {asset.name}
+                  <td className="px-4 py-3">
+                    <div 
+                      className="text-white font-medium text-sm truncate cursor-help"
+                      title={asset.name}
+                    >
+                      {asset.name}
+                    </div>
                   </td>
                   
-                  <td className="px-4 py-3 text-slate-300 font-mono text-xs">
-                    {asset.serial}
+                  <td className="px-4 py-3">
+                    <div 
+                      className="text-slate-300 font-mono text-xs truncate cursor-help"
+                      title={asset.serial}
+                    >
+                      {asset.serial}
+                    </div>
                   </td>
                   
                   <td className="px-4 py-3 text-slate-300 text-xs">
@@ -269,8 +315,33 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     {asset.fecha_salida || '-'}
                   </td>
                   
-                  <td className="px-4 py-3 text-slate-300 text-xs">
-                    {asset.destino || '-'}
+                  <td className="px-4 py-3">
+                    {asset.tipo_retorno ? getReturnTypeBadge(asset.tipo_retorno) : <span className="text-slate-600">-</span>}
+                  </td>
+                  
+                  <td className="px-4 py-3">
+                    {asset.observaciones_retorno ? (
+                      <div 
+                        className="flex items-center gap-1 cursor-help"
+                        title={asset.observaciones_retorno}
+                      >
+                        <FileText className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                        <span className="text-slate-300 text-xs truncate">
+                          {asset.observaciones_retorno}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-600">-</span>
+                    )}
+                  </td>
+                  
+                  <td className="px-4 py-3">
+                    <div 
+                      className="text-slate-300 text-xs truncate cursor-help"
+                      title={asset.destino}
+                    >
+                      {asset.destino || '-'}
+                    </div>
                   </td>
                   
                   <td className="px-4 py-3">

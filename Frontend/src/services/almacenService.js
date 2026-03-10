@@ -9,6 +9,8 @@ const mapFromAPI = (item) => ({
   fecha_ingreso: item.Fecha_Ingreso || '',
   fecha_salida:  item.Fecha_Salida  || '',
   destino:       item.Destino       || '',
+  tipo_retorno:        item.Tipo_Retorno        || '',
+  observaciones_retorno: item.Observaciones_Retorno || '',
 });
 
 const mapToAPI = (asset) => ({
@@ -17,6 +19,8 @@ const mapToAPI = (asset) => ({
   Fecha_Ingreso: asset.fecha_ingreso,
   Fecha_Salida:  asset.fecha_salida  || null,
   Destino:       asset.destino       || null,
+  Tipo_Retorno:        asset.tipo_retorno        || null,
+  Observaciones_Retorno: asset.observaciones_retorno || null,
 });
 
 export const getAssets = async (search = '') => {

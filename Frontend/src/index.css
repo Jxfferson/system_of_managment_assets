@@ -1,38 +1,67 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    
-    --destructive: 0 62.8% 30.6%;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+
+    --destructive: oklch(0.58 0.22 27);
     --destructive-foreground: 210 40% 98%;
-    
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-    
-    --radius: 0.5rem;
+
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+
+    --radius: 0.625rem;
+
+    --chart-1: oklch(0.809 0.105 251.813);
+
+    --chart-2: oklch(0.623 0.214 259.815);
+
+    --chart-3: oklch(0.546 0.245 262.881);
+
+    --chart-4: oklch(0.488 0.243 264.376);
+
+    --chart-5: oklch(0.424 0.199 265.638);
+
+    --sidebar: oklch(0.985 0 0);
+
+    --sidebar-foreground: oklch(0.145 0 0);
+
+    --sidebar-primary: oklch(0.205 0 0);
+
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+
+    --sidebar-accent: oklch(0.97 0 0);
+
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+
+    --sidebar-border: oklch(0.922 0 0);
+
+    --sidebar-ring: oklch(0.708 0 0);
   }
 
   /* Aseguramos que el fondo oscuro se aplique incluso si el CSS tarda */
@@ -45,9 +74,9 @@
 
   body {
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-    @apply antialiased selection:bg-cyan-500/30 selection:text-cyan-200;
+    @apply antialiased selection:bg-cyan-500/30 selection:text-cyan-200 bg-background text-foreground;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight;
   }
@@ -56,17 +85,59 @@
   html.hide-cursor, html.hide-cursor * {
     cursor: none !important;
   }
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.87 0.00 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.371 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.809 0.105 251.813);
+    --chart-2: oklch(0.623 0.214 259.815);
+    --chart-3: oklch(0.546 0.245 262.881);
+    --chart-4: oklch(0.488 0.243 264.376);
+    --chart-5: oklch(0.424 0.199 265.638);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
+  .theme {
+    --font-sans: 'Geist Variable', sans-serif;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
 }
 
 @layer utilities {
   .glass-panel {
     @apply bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl;
   }
-  
+
   .text-glow {
     text-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
   }
-  
+
   .input-premium {
     @apply bg-slate-900/40 border border-white/10 focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/50 focus:shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:bg-slate-900/60 transition-all duration-300 text-white placeholder:text-slate-500 rounded-xl px-4 py-3 w-full backdrop-blur-md outline-none;
   }
