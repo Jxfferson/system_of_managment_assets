@@ -200,52 +200,60 @@ const AdminPage = () => {
     setShowForm(true);
   };
 
-  const handleSave = async (updateSerial = false) => {
-    if (!editingAsset.name || !editingAsset.fecha_ingreso) {
-      toast({ title: "Error", description: "Item and Fecha Ingreso are required", variant: "destructive" });
-      return;
-    }
-    if ((editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño') 
-        && !editingAsset.observaciones_retorno?.trim()) {
-      toast({ 
-        title: "Error", 
-        description: "Observations required for losses/damages", 
-        variant: "destructive" 
-      });
-      return;
-    }
+const handleSave = async (updateSerial = false) => {
+  if (!editingAsset.name || !editingAsset.fecha_ingreso) {
+    toast({ title: "Error", description: "Item and Fecha Ingreso are required", variant: "destructive" });
+    return;
+  }
+    // (si hay tipo_retorno, es válido que fecha_salida sea null)
+  if (!editingAsset.tipo_retorno && editingAsset.fecha_salida) {
+    // Si puso fecha_salida pero no tipo_retorno, está bien
+  }
+  
+  if ((editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño') 
+      && !editingAsset.observaciones_retorno?.trim()) {
+    toast({ 
+      title: "Error", 
+      description: "Observations required for losses/damages", 
+      variant: "destructive" 
+    });
+    return;
+  }
 
-    let finalAsset = { ...editingAsset };
+  let finalAsset = { ...editingAsset };
 
-    if (!editingAsset.id) {
-      const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+  if (!editingAsset.id) {
+    const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+    const nextNum = getNextSerialNumberByItem(editingAsset.name);
+    finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
+  } else if (updateSerial) {
+    const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
+    if (oldAsset && oldAsset.name !== editingAsset.name) {
+      const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
       const nextNum = getNextSerialNumberByItem(editingAsset.name);
-      finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
-    } else if (updateSerial) {
-      const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
-      if (oldAsset && oldAsset.name !== editingAsset.name) {
-        const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
-        const nextNum = getNextSerialNumberByItem(editingAsset.name);
-        finalAsset.serial = `${newPrefix}${String(nextNum).padStart(5, '0')}`;
-      }
+      finalAsset.serial = `${newPrefix}${String(nextNum).padStart(5, '0')}`;
+    }
+  }
+
+  if (finalAsset.tipo_retorno) {
+    finalAsset.fecha_salida = null;
+  }
+
+  try {
+    if (editingAsset.id) {
+      await updateAsset(finalAsset);
+    } else {
+      await createAsset(finalAsset);
     }
 
-    try {
-      // ✅ El service se encarga del mapeo PascalCase ↔ snake_case
-      if (editingAsset.id) {
-        await updateAsset(finalAsset);
-      } else {
-        await createAsset(finalAsset);
-      }
-
-      await loadAssets();
-      setShowForm(false);
-      setEditingAsset(initialAsset);
-      toast({ title: "Éxito", description: "Activo guardado correctamente" });
-    } catch (err) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
+    await loadAssets();
+    setShowForm(false);
+    setEditingAsset(initialAsset);
+    toast({ title: "Éxito", description: "Activo guardado correctamente" });
+  } catch (err) {
+    toast({ title: "Error", description: err.message, variant: "destructive" });
+  }
+};
 
   const handleSaveLot = async () => {
     if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {

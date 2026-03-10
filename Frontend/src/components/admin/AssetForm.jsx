@@ -45,9 +45,7 @@ const AssetForm = ({
     : editingAsset.serial;
 
   const canHaveReturnType = !!editingAsset.destino && !!editingAsset.fecha_salida;
-  
   const canHaveObservations = !!editingAsset.tipo_retorno;
-
 
   const handleReturnTypeChange = (e) => {
     const returnType = e.target.value;
@@ -68,6 +66,7 @@ const AssetForm = ({
       observaciones_retorno: newDestino ? editingAsset.observaciones_retorno : ''
     });
   };
+
   const handleExitDateChange = (e) => {
     const newFechaSalida = e.target.value;
     setEditingAsset({ 
@@ -90,7 +89,6 @@ const AssetForm = ({
       
       <div className="grid md:grid-cols-2 gap-4">
         
-        {/* Item */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Item *
@@ -132,7 +130,6 @@ const AssetForm = ({
           </div>
         </div>
 
-        {/* Serial */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Serial {isEditing ? '' : '(auto-generated)'}
@@ -145,7 +142,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* Entry Date */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Entry Date *
@@ -158,7 +154,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* Exit Date */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Exit Date {!canHaveReturnType && '(required for return type)'}
@@ -172,7 +167,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* Destination */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Destination
@@ -192,14 +186,14 @@ const AssetForm = ({
           </Select>
           {editingAsset.tipo_retorno && (
             <p className="mt-1 text-xs text-green-400">
-              Destination cleared (asset returned to stock)
+              Destination & Exit Date cleared (asset returned to stock)
             </p>
           )}
         </div>
 
         <div className={!canHaveReturnType ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Return Type {!canHaveReturnType && '🔒 (requires destination + exit date)'}
+            Return Type {!canHaveReturnType && '(requires destination + exit date)'}
           </label>
           <Select
             value={editingAsset.tipo_retorno || ''}
@@ -207,20 +201,20 @@ const AssetForm = ({
             disabled={!canHaveReturnType}
           >
             <option value="">Select return type...</option>
-            <option value="Retorno">🔄 Retorno</option>
-            <option value="Perdida">❌ Pérdida</option>
-            <option value="Daño">⚠️ Daño</option>
+            <option value="Retorno">Retorno</option>
+            <option value="Perdida">Pérdida</option>
+            <option value="Daño">Daño</option>
           </Select>
           {!canHaveReturnType && (
             <p className="mt-1 text-xs text-amber-400">
-              ⚠️ First assign destination and exit date
+              First assign destination and exit date
             </p>
           )}
         </div>
 
         <div className={!canHaveObservations ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Observations {!canHaveObservations && '🔒 (requires return type)'}
+            Observations {!canHaveObservations && '(requires return type)'}
             {editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño' ? ' *' : ''}
           </label>
           <textarea
@@ -245,16 +239,16 @@ const AssetForm = ({
           />
           {!canHaveObservations && (
             <p className="mt-1 text-xs text-amber-400">
-              ⚠️ First select a return type
+              First select a return type
             </p>
           )}
           {editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño' ? (
             <p className="mt-1 text-xs text-red-400">
-              ⚠️ Required for losses and damages
+              Required for losses and damages
             </p>
           ) : canHaveObservations ? (
             <p className="mt-1 text-xs text-slate-500">
-              📝 Additional information about the return
+              Additional information about the return
             </p>
           ) : null}
         </div>

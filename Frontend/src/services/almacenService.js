@@ -3,23 +3,23 @@ import API_URL from './api.config';
 const BASE = `${API_URL}/api/almacen`;
 
 const mapFromAPI = (item) => ({
-  id:            String(item.ID),
-  name:          item.Item,
-  serial:        item.Serial        || '',
+  id: String(item.ID),
+  name: item.Item,
+  serial: item.Serial || '',
   fecha_ingreso: item.Fecha_Ingreso || '',
-  fecha_salida:  item.Fecha_Salida  || '',
-  destino:       item.Destino       || '',
-  tipo_retorno:        item.Tipo_Retorno        || '',
+  fecha_salida: item.Fecha_Salida || '',
+  destino: item.Destino || '',
+  tipo_retorno: item.Tipo_Retorno || '',
   observaciones_retorno: item.Observaciones_Retorno || '',
 });
 
 const mapToAPI = (asset) => ({
-  Item:          asset.name,
-  Serial:        asset.serial        || null,
+  Item: asset.name,
+  Serial: asset.serial || null,
   Fecha_Ingreso: asset.fecha_ingreso,
-  Fecha_Salida:  asset.fecha_salida  || null,
-  Destino:       asset.destino       || null,
-  Tipo_Retorno:        asset.tipo_retorno        || null,
+  Fecha_Salida: asset.fecha_salida || null,
+  Destino: asset.destino || null,
+  Tipo_Retorno: asset.tipo_retorno || null,
   Observaciones_Retorno: asset.observaciones_retorno || null,
 });
 
@@ -33,9 +33,9 @@ export const getAssets = async (search = '') => {
 
 export const createAsset = async (asset) => {
   const res = await fetch(BASE, {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(mapToAPI(asset)),
+    body: JSON.stringify(mapToAPI(asset)),
   });
   if (!res.ok) throw new Error('Error al crear activo');
   return await res.json();
@@ -63,9 +63,9 @@ export const createAssetLotBulk = async (assets) => {
 
 export const updateAsset = async (asset) => {
   const res = await fetch(`${BASE}/${asset.id}`, {
-    method:  'PUT',
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(mapToAPI(asset)),
+    body: JSON.stringify(mapToAPI(asset)),
   });
   if (!res.ok) throw new Error('Error al actualizar activo');
   return await res.json();

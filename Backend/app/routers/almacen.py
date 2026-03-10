@@ -21,6 +21,7 @@ class ItemResponse(BaseModel):
 
 class AlmacenBulkCreate(BaseModel):
     items: List[AlmacenCreate]
+
 @router.get("/items", response_model=List[ItemResponse])
 def get_available_items(db: Session = Depends(get_db)):
     try:
@@ -51,9 +52,6 @@ def get_available_items(db: Session = Depends(get_db)):
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-
 @router.get("/", response_model=List[AlmacenResponse])
 def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(Almacen)
@@ -73,7 +71,6 @@ def get_by_id(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No encontrado")
     return item
 
-
 @router.post("/", response_model=AlmacenResponse, status_code=201)
 def create(data: AlmacenCreate, db: Session = Depends(get_db)):
     nuevo = Almacen(
@@ -81,7 +78,9 @@ def create(data: AlmacenCreate, db: Session = Depends(get_db)):
         Serial=data.Serial,
         Fecha_Ingreso=data.Fecha_Ingreso,
         Fecha_Salida=data.Fecha_Salida,
-        Destino=data.Destino
+        Destino=data.Destino,
+        Tipo_Retorno=data.Tipo_Retorno,
+        Observaciones_Retorno=data.Observaciones_Retorno
     )
     db.add(nuevo)
     db.commit()
@@ -110,7 +109,9 @@ def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
                 "Serial": item.Serial,
                 "Fecha_Ingreso": item.Fecha_Ingreso,
                 "Fecha_Salida": item.Fecha_Salida,
-                "Destino": item.Destino
+                "Destino": item.Destino,
+                "Tipo_Retorno": item.Tipo_Retorno,
+                "Observaciones_Retorno": item.Observaciones_Retorno
             } for item in data.items
         ])
         db.commit()

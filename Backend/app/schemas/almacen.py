@@ -4,11 +4,15 @@ from typing import Optional
 
 
 class AlmacenBase(BaseModel):
-    Item:          str
-    Serial:        Optional[str]  = None
-    Fecha_Ingreso: date
-    Fecha_Salida:  Optional[date] = None
-    Destino:       Optional[str]  = None
+    Item:                   str
+    Serial:                 Optional[str] = None
+    Fecha_Ingreso:          date
+    Fecha_Salida:           Optional[date] = None
+    Destino:                Optional[str] = None
+    Tipo_Retorno:           Optional[str] = None
+    Observaciones_Retorno:  Optional[str] = None
+    
+    model_config = {"from_attributes": True}
 
 
 class AlmacenCreate(AlmacenBase):
@@ -16,16 +20,20 @@ class AlmacenCreate(AlmacenBase):
 
 
 class AlmacenUpdate(BaseModel):
-    Item:          Optional[str]  = None
-    Serial:        Optional[str]  = None
-    Fecha_Ingreso: Optional[date] = None
-    Fecha_Salida:  Optional[date] = None
-    Destino:       Optional[str]  = None
+    Item:                   Optional[str] = None
+    Serial:                 Optional[str] = None
+    Fecha_Ingreso:          Optional[date] = None
+    Fecha_Salida:           Optional[date] = None
+    Destino:                Optional[str] = None
+    Tipo_Retorno:           Optional[str] = None
+    Observaciones_Retorno:  Optional[str] = None
+    
+    model_config = {"from_attributes": True}
 
 
 class AlmacenResponse(AlmacenBase):
     ID: int
-
+    
     model_config = {"from_attributes": True}
 
 
@@ -33,8 +41,9 @@ class ItemCreate(BaseModel):
     name: str
     serial_prefix: Optional[str] = None
 
+
 class ItemResponse(BaseModel):
     name: str
     serial_prefix: str
-    class Config:
-        from_attributes = True
+    
+    model_config = {"from_attributes": True}
