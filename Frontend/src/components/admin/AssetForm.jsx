@@ -93,41 +93,22 @@ const AssetForm = ({
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Item *
           </label>
-          <div className="relative">
-            <Select
-              value={editingAsset.name}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '__NEW__') {
-                  setEditingAsset({ ...editingAsset, name: '', serial: '' });
-                } else {
-                  setEditingAsset({ 
-                    ...editingAsset, 
-                    name: val,
-                    serial: isEditing ? editingAsset.serial : '' 
-                  });
-                }
-              }}
-            >
-              <option value="">Select or type...</option>
-              {itemsList.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-              <option value="__NEW__" className="text-sky-400">+ New item...</option>
-            </Select>
-
-            <Input
-              type="text"
-              value={editingAsset.name}
-              onChange={(e) => setEditingAsset({ 
+          <Select
+            value={editingAsset.name}
+            onChange={(e) => {
+              const val = e.target.value;
+              setEditingAsset({ 
                 ...editingAsset, 
-                name: e.target.value, 
+                name: val,
                 serial: isEditing ? editingAsset.serial : '' 
-              })}
-              placeholder="Or type new item name..."
-              className="mt-2 bg-slate-900"
-            />
-          </div>
+              });
+            }}
+          >
+            <option value="">Select an item...</option>
+            {itemsList.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </Select>
         </div>
 
         <div>

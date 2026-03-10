@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Filter, LogOut, Layers, Lock, User, Settings } from 'lucide-react';
+import { Plus, Filter, LogOut, Layers, Lock, User, Settings, Package, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -18,6 +18,7 @@ import AssetForm     from '@/components/admin/AssetForm';
 import AssetTable    from '@/components/admin/AssetTable';
 import ExportMenu    from '@/components/admin/ExportMenu';
 import AssetLotForm  from '@/components/admin/AssetLotForm';
+import ItemManager   from '../components/admin/ItemManager';
 import { toast } from '@/components/ui/use-toast';
 
 import { verifyPassword } from '@/utils/passwordLocal';
@@ -49,6 +50,8 @@ const DEFAULT_PREFIXES = {
   'Extension de Cable eléctrico': 'EXT'
 };
 
+const STORAGE_ITEMS_KEY = 'inventory_items';
+
 const generatePrefix = (itemName) => {
   if (!itemName) return 'ITM';
   const prefix = itemName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
@@ -69,6 +72,8 @@ const initialLotData = {
 const AdminPage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('assets');
+
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -82,10 +87,25 @@ const AdminPage = () => {
     fechaEntrada: '', fechaSalida: ''     
   });
   
-  const [itemPrefixMap, setItemPrefixMap] = useState(DEFAULT_PREFIXES);
+  const [itemPrefixMap, setItemPrefixMap] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_ITEMS_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return DEFAULT_PREFIXES;
+      }
+    }
+    return DEFAULT_PREFIXES;
+  });
+  
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
+  }, [itemPrefixMap]);
 
   const loadAssets = async () => {
     setLoading(true);
@@ -120,24 +140,30 @@ const AdminPage = () => {
     const handleKeyDown = (event) => {
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
-        toast({ title: "Nuevo Activo" });
-        setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
-        setShowForm(true);
+        if (activeTab === 'assets') {
+          toast({ title: "Nuevo Activo" });
+          setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
+          setShowForm(true);
+        }
       }
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'l') {
         event.preventDefault();
-        toast({ title: "Nuevo Lote" });
-        setShowLotForm(true);
+        if (activeTab === 'assets') {
+          toast({ title: "Nuevo Lote" });
+          setShowLotForm(true);
+        }
       }
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        toast({ title: "Filtros" });
-        setShowFilters(prev => !prev);
+        if (activeTab === 'assets') {
+          toast({ title: "Filtros" });
+          setShowFilters(prev => !prev);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [activeTab]);
 
   const compareDates = (date1, date2) => {
     if (!date1 || !date2) return false;
@@ -183,6 +209,27 @@ const AdminPage = () => {
     toast({ title: "Password changed", description: "Admin password updated successfully." });
   };
 
+  const handleItemCreated = (name, prefix) => {
+    setItemPrefixMap(prev => ({ ...prev, [name]: prefix || generatePrefix(name) }));
+  };
+
+  const handleItemUpdated = (oldName, newName, newPrefix) => {
+    setItemPrefixMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[oldName];
+      newMap[newName] = newPrefix || generatePrefix(newName);
+      return newMap;
+    });
+  };
+
+  const handleItemDeleted = (name) => {
+    setItemPrefixMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[name];
+      return newMap;
+    });
+  };
+
   const getNextSerialNumberByItem = (itemName) => {
     const prefix = itemPrefixMap[itemName] || generatePrefix(itemName);
     const numbers = assets
@@ -200,60 +247,59 @@ const AdminPage = () => {
     setShowForm(true);
   };
 
-const handleSave = async (updateSerial = false) => {
-  if (!editingAsset.name || !editingAsset.fecha_ingreso) {
-    toast({ title: "Error", description: "Item and Fecha Ingreso are required", variant: "destructive" });
-    return;
-  }
-    // (si hay tipo_retorno, es válido que fecha_salida sea null)
-  if (!editingAsset.tipo_retorno && editingAsset.fecha_salida) {
-    // Si puso fecha_salida pero no tipo_retorno, está bien
-  }
-  
-  if ((editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño') 
-      && !editingAsset.observaciones_retorno?.trim()) {
-    toast({ 
-      title: "Error", 
-      description: "Observations required for losses/damages", 
-      variant: "destructive" 
-    });
-    return;
-  }
+  const handleSave = async (updateSerial = false) => {
+    if (!editingAsset.name || !editingAsset.fecha_ingreso) {
+      toast({ title: "Error", description: "Item and Fecha Ingreso are required", variant: "destructive" });
+      return;
+    }
+    if (!editingAsset.tipo_retorno && editingAsset.fecha_salida) {
+      // Si puso fecha_salida pero no tipo_retorno, está bien
+    }
+    
+    if ((editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño') 
+        && !editingAsset.observaciones_retorno?.trim()) {
+      toast({ 
+        title: "Error", 
+        description: "Observations required for losses/damages", 
+        variant: "destructive" 
+      });
+      return;
+    }
 
-  let finalAsset = { ...editingAsset };
+    let finalAsset = { ...editingAsset };
 
-  if (!editingAsset.id) {
-    const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
-    const nextNum = getNextSerialNumberByItem(editingAsset.name);
-    finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
-  } else if (updateSerial) {
-    const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
-    if (oldAsset && oldAsset.name !== editingAsset.name) {
-      const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+    if (!editingAsset.id) {
+      const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
       const nextNum = getNextSerialNumberByItem(editingAsset.name);
-      finalAsset.serial = `${newPrefix}${String(nextNum).padStart(5, '0')}`;
-    }
-  }
-
-  if (finalAsset.tipo_retorno) {
-    finalAsset.fecha_salida = null;
-  }
-
-  try {
-    if (editingAsset.id) {
-      await updateAsset(finalAsset);
-    } else {
-      await createAsset(finalAsset);
+      finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
+    } else if (updateSerial) {
+      const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
+      if (oldAsset && oldAsset.name !== editingAsset.name) {
+        const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+        const nextNum = getNextSerialNumberByItem(editingAsset.name);
+        finalAsset.serial = `${newPrefix}${String(nextNum).padStart(5, '0')}`;
+      }
     }
 
-    await loadAssets();
-    setShowForm(false);
-    setEditingAsset(initialAsset);
-    toast({ title: "Éxito", description: "Activo guardado correctamente" });
-  } catch (err) {
-    toast({ title: "Error", description: err.message, variant: "destructive" });
-  }
-};
+    if (finalAsset.tipo_retorno) {
+      finalAsset.fecha_salida = null;
+    }
+
+    try {
+      if (editingAsset.id) {
+        await updateAsset(finalAsset);
+      } else {
+        await createAsset(finalAsset);
+      }
+
+      await loadAssets();
+      setShowForm(false);
+      setEditingAsset(initialAsset);
+      toast({ title: "Éxito", description: "Activo guardado correctamente" });
+    } catch (err) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleSaveLot = async () => {
     if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
@@ -322,17 +368,47 @@ const handleSave = async (updateSerial = false) => {
       <div className="container mx-auto max-w-6xl">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
           <h1 className="text-3xl font-bold text-white">Asset Management</h1>
-          <div className="flex gap-3 flex-wrap items-center">
-            <Button onClick={handleAdd} className="h-10 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700" title="Nuevo Activo (Ctrl+Alt+N)">
-              <Plus className="w-4 h-4 mr-2" /> Add Asset
-            </Button>
-            <Button onClick={() => setShowLotForm(true)} className="h-10 px-6 bg-gradient-to-r from-slate-500 to-slate-700 text-white hover:from-slate-600 hover:to-slate-800" title="Nuevo Lote (Ctrl+Alt+L)">
-              <Layers className="w-4 h-4 mr-2" /> Add Lot
-            </Button>
-            <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="h-10 border-white/10 text-slate-300 hover:bg-white/5" title="Filtros (Ctrl+Alt+F)">
-              <Filter className="w-4 h-4 mr-2" /> Filter
-            </Button>
-            <ExportMenu filteredAssets={filteredAssets} />
+          <div className="flex gap-3 flex-wrap items-center ml-auto">
+            <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/10">
+              <button
+                onClick={() => setActiveTab('assets')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  activeTab === 'assets'
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                Assets
+              </button>
+              <button
+                onClick={() => setActiveTab('items')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  activeTab === 'items'
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                Items
+              </button>
+            </div>
+
+            {activeTab === 'assets' && (
+              <>
+                <Button onClick={handleAdd} className="h-10 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700" title="Nuevo Activo (Ctrl+Alt+N)">
+                  <Plus className="w-4 h-4 mr-2" /> Add Asset
+                </Button>
+                <Button onClick={() => setShowLotForm(true)} className="h-10 px-6 bg-gradient-to-r from-slate-500 to-slate-700 text-white hover:from-slate-600 hover:to-slate-800" title="Nuevo Lote (Ctrl+Alt+L)">
+                  <Layers className="w-4 h-4 mr-2" /> Add Lot
+                </Button>
+                <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="h-10 border-white/10 text-slate-300 hover:bg-white/5" title="Filtros (Ctrl+Alt+F)">
+                  <Filter className="w-4 h-4 mr-2" /> Filter
+                </Button>
+                <ExportMenu filteredAssets={filteredAssets} />
+              </>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="h-10 px-4 border-white/10 text-slate-300 hover:bg-white/5">
@@ -353,25 +429,38 @@ const handleSave = async (updateSerial = false) => {
             </DropdownMenu>
           </div>
         </div>
-        <AssetStats assets={assets} />
-        {showFilters && (
-          <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} allAssets={assets} setFilteredAssets={setAssets} />
-        )}
-        {loading && <div className="text-center text-slate-400 py-8">Cargando datos...</div>}
-        {showForm && (
-          <AssetForm
-            editingAsset={editingAsset}
-            setEditingAsset={setEditingAsset}
-            onSave={handleSave}
-            onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }}
-            isEditing={!!editingAsset.id}
-            nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null}
-            availableItems={Object.keys(itemPrefixMap)}
-            itemPrefixMap={itemPrefixMap}
+
+        {activeTab === 'assets' ? (
+          <>
+            <AssetStats assets={assets} />
+            {showFilters && (
+              <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} allAssets={assets} setFilteredAssets={setAssets} />
+            )}
+            {loading && <div className="text-center text-slate-400 py-8">Cargando datos...</div>}
+            {showForm && (
+              <AssetForm
+                editingAsset={editingAsset}
+                setEditingAsset={setEditingAsset}
+                onSave={handleSave}
+                onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }}
+                isEditing={!!editingAsset.id}
+                nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null}
+                availableItems={Object.keys(itemPrefixMap)}
+                itemPrefixMap={itemPrefixMap}
+              />
+            )}
+            <AssetLotForm isOpen={showLotForm} onClose={() => { setShowLotForm(false); setLotData(initialLotData); }} lotData={lotData} setLotData={setLotData} onSave={handleSaveLot} nextSerialNumber={getNextSerialNumberByItem(lotData.item)} initialItems={Object.keys(itemPrefixMap)} initialPrefixMap={itemPrefixMap} onItemCreated={(name, prefix) => setItemPrefixMap(prev => ({ ...prev, [name]: prefix }))} />
+            <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
+          </>
+        ) : (
+          <ItemManager
+            items={itemPrefixMap}
+            onItemCreated={handleItemCreated}
+            onItemUpdated={handleItemUpdated}
+            onItemDeleted={handleItemDeleted}
           />
         )}
-        <AssetLotForm isOpen={showLotForm} onClose={() => { setShowLotForm(false); setLotData(initialLotData); }} lotData={lotData} setLotData={setLotData} onSave={handleSaveLot} nextSerialNumber={getNextSerialNumberByItem(lotData.item)} initialItems={Object.keys(itemPrefixMap)} initialPrefixMap={itemPrefixMap} onItemCreated={(name, prefix) => setItemPrefixMap(prev => ({ ...prev, [name]: prefix }))} />
-        <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
+
         <ChangePasswordModal isOpen={showChangePasswordModal} onClose={() => setShowChangePasswordModal(false)} onSuccess={handlePasswordChangeSuccess} />
       </div>
     </div>
