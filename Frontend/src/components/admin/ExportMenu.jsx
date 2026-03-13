@@ -23,18 +23,34 @@ const ExportMenu = ({ filteredAssets }) => {
       'Serial': a.serial || '',
       'F. Ingreso': a.fecha_ingreso || '-',
       'F. Salida': a.fecha_salida || '-',
-      'Destino': a.destino || '-'
+      'Return Type': a.tipo_retorno || '-',
+      'Observations': a.observaciones_retorno || '-',
+      'Destination': a.destino || '-'
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     
     worksheet['!cols'] = [
-      { wch: 30 },
+      { wch: 35 },  
       { wch: 20 },
       { wch: 15 },
       { wch: 15 },
+      { wch: 15 },
+      { wch: 40 },
       { wch: 25 }
     ];
+
+    
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const address = XLSX.utils.encode_col(C) + "1";
+      if (!worksheet[address]) continue;
+      worksheet[address].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "0F172A" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+    }
 
     worksheet['!protect'] = {
       password: 'OTDColombia2025.',

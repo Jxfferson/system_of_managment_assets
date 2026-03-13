@@ -16,13 +16,13 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
 
   const clearFilters = () => {
     setFilters({ 
-      name: '', 
       serial: '', 
-      date: '', 
-      fechaEntrada: '', 
-      fechaSalida: '', 
       destino: '', 
-      item: '' 
+      item: '',
+      fechaEntrada: '', 
+      fechaSalida: '',
+      tipo_retorno: '',
+      observaciones: ''
     });
   };
 
@@ -134,6 +134,31 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
           value={filters.fechaSalida || ''}
           onChange={(e) => update('fechaSalida', e.target.value)}
           className="bg-slate-900 border-rose-500/30 text-slate-200 focus:ring-rose-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-slate-400 text-xs font-medium block">Return Type</label>
+        <select
+          className={selectClass}
+          value={filters.tipo_retorno || ''}
+          onChange={(e) => update('tipo_retorno', e.target.value)}
+        >
+          <option value="">All Return Types</option>
+          <option value="Retorno">Retorno</option>
+          <option value="Perdida">Pérdida</option>
+          <option value="Daño">Daño</option>
+        </select>
+      </div>
+
+      <div className="md:col-span-3">
+        <label className="text-slate-400 text-xs font-medium block">Observations (search in text)</label>
+        <Input
+          type="text"
+          placeholder="Search in observations..."
+          value={filters.observaciones || ''}
+          onChange={(e) => update('observaciones', e.target.value)}
+          className="bg-slate-900 border-cyan-500/30 text-slate-200 focus:ring-cyan-500"
         />
       </div>
 

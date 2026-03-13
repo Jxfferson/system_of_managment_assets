@@ -9,7 +9,7 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/90"
         onClick={onCancel}
       />
       
@@ -17,7 +17,7 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="relative bg-slate-900 border border-white/10 rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
+        className="relative bg-slate-900 bg-opacity-100 border border-white/20 rounded-2xl shadow-2xl max-w-md w-full mx-4"
       >
         <button 
           onClick={onCancel}

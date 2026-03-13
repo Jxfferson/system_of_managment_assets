@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+// IMPORTANTE: Importamos la función escapeHtml para proteger contra XSS al mostrar datos
+import { escapeHtml } from '@/utils/sanitize';
 
 const ITEMS_PER_PAGE = 50;
 
@@ -144,8 +146,8 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
 
   const handleDeleteSingle = (id) => {
     showConfirmModal({
-      title: 'Eliminar elemento',
-      message: '¿Estás seguro de eliminar este elemento? Esta acción no se puede deshacer y es irréversible.',
+      title: 'Delete asset',
+      message: 'Are you sure you want to delete this item? This action cannot be undone and is irreversible.',
       variant: 'destructive',
       onConfirm: () => {
         onDelete(id);
@@ -289,24 +291,27 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     </button>
                   </td>
 
+                  {/* PROTECCION XSS: Usamos escapeHtml en asset.name para evitar inyección de código */}
                   <td className="px-4 py-3">
                     <div 
                       className="text-white font-medium text-sm truncate cursor-help"
-                      title={asset.name}
+                      title={escapeHtml(asset.name)}
                     >
-                      {asset.name}
+                      {escapeHtml(asset.name)}
                     </div>
                   </td>
                   
+                  {/* PROTECCION XSS: Usamos escapeHtml en asset.serial para evitar inyección de código */}
                   <td className="px-4 py-3">
                     <div 
                       className="text-slate-300 font-mono text-xs truncate cursor-help"
-                      title={asset.serial}
+                      title={escapeHtml(asset.serial)}
                     >
-                      {asset.serial}
+                      {escapeHtml(asset.serial)}
                     </div>
                   </td>
                   
+                  {/* Las fechas no necesitan escape ya que son valores controlados del input type="date" */}
                   <td className="px-4 py-3 text-slate-300 text-xs">
                     {asset.fecha_ingreso || '-'}
                   </td>
@@ -315,19 +320,21 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     {asset.fecha_salida || '-'}
                   </td>
                   
+                  {/* tipo_retorno viene de un select con valores fijos, riesgo bajo pero aplicamos escape por seguridad */}
                   <td className="px-4 py-3">
-                    {asset.tipo_retorno ? getReturnTypeBadge(asset.tipo_retorno) : <span className="text-slate-600">-</span>}
+                    {asset.tipo_retorno ? getReturnTypeBadge(escapeHtml(asset.tipo_retorno)) : <span className="text-slate-600">-</span>}
                   </td>
                   
+                  {/* PROTECCION XSS CRITICA: observaciones_retorno es texto libre, alto riesgo de inyección */}
                   <td className="px-4 py-3">
                     {asset.observaciones_retorno ? (
                       <div 
                         className="flex items-center gap-1 cursor-help"
-                        title={asset.observaciones_retorno}
+                        title={escapeHtml(asset.observaciones_retorno)}
                       >
                         <FileText className="w-3 h-3 text-cyan-400 flex-shrink-0" />
                         <span className="text-slate-300 text-xs truncate">
-                          {asset.observaciones_retorno}
+                          {escapeHtml(asset.observaciones_retorno)}
                         </span>
                       </div>
                     ) : (
@@ -335,12 +342,13 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     )}
                   </td>
                   
+                  {/* PROTECCION XSS: Usamos escapeHtml en asset.destino para evitar inyección de código */}
                   <td className="px-4 py-3">
                     <div 
                       className="text-slate-300 text-xs truncate cursor-help"
-                      title={asset.destino}
+                      title={escapeHtml(asset.destino)}
                     >
-                      {asset.destino || '-'}
+                      {escapeHtml(asset.destino) || '-'}
                     </div>
                   </td>
                   
