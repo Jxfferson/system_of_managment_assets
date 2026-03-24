@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, X, FileText } from 'lucide-react';
+import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, X, FileText, Wrench, AlertCircle, HelpCircle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-// IMPORTANTE: Importamos la función escapeHtml para proteger contra XSS al mostrar datos
 import { escapeHtml } from '@/utils/sanitize';
 
 const ITEMS_PER_PAGE = 50;
@@ -158,24 +157,31 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
 
   const getReturnTypeBadge = (tipo) => {
     if (!tipo) return null;
-    
-    const styles = {
-      'Retorno': 'bg-green-500/20 text-green-400 border-green-500/30',
-      'Perdida': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      'Daño': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+
+    const config = {
+      'Needs Repair': {
+        className: 'bg-slate-700/50 text-slate-300',
+        icon: <Wrench className="w-3 h-3" />
+      },
+      'Needs Replacement': {
+        className: 'bg-slate-700/50 text-red-300',
+        icon: <AlertCircle className="w-3 h-3" />
+      },
+      'Missing': {
+        className: 'bg-slate-700/50 text-slate-300',
+        icon: <HelpCircle className="w-3 h-3" />
+      }
     };
 
-    const icons = {
-      'Retorno': '🔄',
-      'Perdida': '❓',
-      'Daño': '⚠️'
-    };
+    const item = config[tipo];
 
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${styles[tipo] || 'bg-slate-700 text-slate-300'}`}>
-        <span>{icons[tipo] || ''}</span>
-        {tipo}
-      </span>
+      <div className="flex justify-start">
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${item?.className || 'bg-slate-700 text-slate-300'}`}>
+          {item?.icon}
+          {tipo}
+        </span>
+      </div>
     );
   };
 
@@ -231,17 +237,18 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left table-fixed">
+        <table className="w-full text-left table-fixed min-w-[1400px]">
           <colgroup>
             <col className="w-10" />
-            <col className="w-1/4" />
-            <col className="w-32" />
-            <col className="w-32" />
-            <col className="w-32" />
-            <col className="w-32" />
-            <col className="w-1/4" />
-            <col className="w-40" />
+            <col className="w-36" />
             <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-28" />
+            <col className="w-36" />
+            <col className="w-28" />
+            <col className="w-32" />
+            <col className="w-20" />
           </colgroup>
           <thead className="bg-slate-800/50">
             <tr>
@@ -264,6 +271,7 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Return Type</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Observations</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Destination</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Current Headquarters</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Actions</th>
             </tr>
           </thead>
@@ -290,8 +298,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                       )}
                     </button>
                   </td>
-
-                  {/* PROTECCION XSS: Usamos escapeHtml en asset.name para evitar inyección de código */}
                   <td className="px-4 py-3">
                     <div 
                       className="text-white font-medium text-sm truncate cursor-help"
@@ -301,7 +307,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     </div>
                   </td>
                   
-                  {/* PROTECCION XSS: Usamos escapeHtml en asset.serial para evitar inyección de código */}
                   <td className="px-4 py-3">
                     <div 
                       className="text-slate-300 font-mono text-xs truncate cursor-help"
@@ -311,7 +316,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     </div>
                   </td>
                   
-                  {/* Las fechas no necesitan escape ya que son valores controlados del input type="date" */}
                   <td className="px-4 py-3 text-slate-300 text-xs">
                     {asset.fecha_ingreso || '-'}
                   </td>
@@ -320,12 +324,10 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     {asset.fecha_salida || '-'}
                   </td>
                   
-                  {/* tipo_retorno viene de un select con valores fijos, riesgo bajo pero aplicamos escape por seguridad */}
                   <td className="px-4 py-3">
                     {asset.tipo_retorno ? getReturnTypeBadge(escapeHtml(asset.tipo_retorno)) : <span className="text-slate-600">-</span>}
                   </td>
                   
-                  {/* PROTECCION XSS CRITICA: observaciones_retorno es texto libre, alto riesgo de inyección */}
                   <td className="px-4 py-3">
                     {asset.observaciones_retorno ? (
                       <div 
@@ -342,7 +344,6 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     )}
                   </td>
                   
-                  {/* PROTECCION XSS: Usamos escapeHtml en asset.destino para evitar inyección de código */}
                   <td className="px-4 py-3">
                     <div 
                       className="text-slate-300 text-xs truncate cursor-help"
@@ -350,6 +351,22 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                     >
                       {escapeHtml(asset.destino) || '-'}
                     </div>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    {asset.Sede_Actual ? (
+                      <div 
+                        className="flex items-center gap-1.5 cursor-help"
+                        title={escapeHtml(asset.Sede_Actual)}
+                      >
+                        <Building2 className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                        <span className="text-slate-300 text-xs truncate">
+                          {escapeHtml(asset.Sede_Actual)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs">-</span>
+                    )}
                   </td>
                   
                   <td className="px-4 py-3">

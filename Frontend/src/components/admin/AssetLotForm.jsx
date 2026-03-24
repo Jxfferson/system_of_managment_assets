@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Save, X } from 'lucide-react'
+import { Save, X, Building2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -22,6 +22,9 @@ const DEFAULT_PREFIXES = {
   'Extension de Cable eléctrico': 'EXT'
 }
 
+// ← Lista de sedes (debe coincidir con el backend)
+const SEDES_DISPONIBLES = ["Connecta 80", "Caracol", "American BPS"]
+
 export default function AssetLotForm({
   isOpen,
   onClose,
@@ -35,7 +38,11 @@ export default function AssetLotForm({
 
   useEffect(() => {
     if (isOpen) {
-      setLotData(prev => ({ ...prev, item: '' }))
+      setLotData(prev => ({ 
+        ...prev, 
+        item: '',
+        Sede_Actual: '' 
+      }))
     }
   }, [isOpen])
 
@@ -88,6 +95,24 @@ export default function AssetLotForm({
             <Input type="date" value={lotData.fecha_ingreso} onChange={(e) => handleChange('fecha_ingreso', e.target.value)} />
           </div>
 
+          {/* ← NUEVO: Campo Sede Actual */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <Building2 className="w-3.5 h-3.5 inline mr-1.5 text-cyan-400" />
+              Current Headquarters
+            </label>
+            <Select 
+              value={lotData.Sede_Actual || ''} 
+              onChange={(e) => handleChange('Sede_Actual', e.target.value)}
+              className="w-full bg-slate-800/50"
+            >
+              <option value="">Select a headquarters...</option>
+              {SEDES_DISPONIBLES.map((sede) => (
+                <option key={sede} value={sede}>{sede}</option>
+              ))}
+            </Select>
+          </div>
+
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
@@ -97,7 +122,9 @@ export default function AssetLotForm({
           >
             <X className="w-4 h-4 mr-2"/> Cancel
           </Button>
-          <Button onClick={onSave} className="bg-gradient-to-r from-sky-600 to-blue-500 text-white" disabled={!isMainFormValid}><Save className="w-4 h-4 mr-2"/> Save Lot</Button>
+          <Button onClick={onSave} className="bg-gradient-to-r from-sky-600 to-blue-500 text-white" disabled={!isMainFormValid}>
+            <Save className="w-4 h-4 mr-2"/> Save Lot
+          </Button>
         </div>
       </div>
     </div>

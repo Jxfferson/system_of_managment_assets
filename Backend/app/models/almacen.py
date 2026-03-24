@@ -13,3 +13,4 @@ class Almacen(Base):
     Destino               = Column(String(50), nullable=True)
     Tipo_Retorno          = Column(String(50), nullable=True)
     Observaciones_Retorno = Column(String(500), nullable=True)
+    Sede_Actual           = Column(String(100), nullable=True)

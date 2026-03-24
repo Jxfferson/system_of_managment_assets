@@ -7,9 +7,11 @@ from pydantic import BaseModel
 
 from app.config.database import get_db
 from app.models.almacen import Almacen
-from app.schemas.almacen import AlmacenCreate, AlmacenUpdate, AlmacenResponse
+from app.schemas.almacen import AlmacenCreate, AlmacenUpdate, AlmacenResponse, SedeResponse
 
 router = APIRouter(prefix="/api/almacen", tags=["Almacen"])
+
+SEDES_PERMITIDAS = ["Connecta 80", "Caracol", "American BPS"]
 
 class ItemCreate(BaseModel):
     name: str
@@ -21,6 +23,10 @@ class ItemResponse(BaseModel):
 
 class AlmacenBulkCreate(BaseModel):
     items: List[AlmacenCreate]
+
+@router.get("/sedes", response_model=List[SedeResponse])
+def get_available_sedes():
+    return [{"value": sede, "label": sede} for sede in SEDES_PERMITIDAS]
 
 @router.get("/items", response_model=List[ItemResponse])
 def get_available_items(db: Session = Depends(get_db)):
@@ -61,6 +67,7 @@ def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
             Almacen.Item.like(term),
             Almacen.Serial.like(term),
             Almacen.Destino.like(term),
+            Almacen.Sede_Actual.like(term),  
         ))
     return query.order_by(Almacen.ID.desc()).all()
 
@@ -80,7 +87,8 @@ def create(data: AlmacenCreate, db: Session = Depends(get_db)):
         Fecha_Salida=data.Fecha_Salida,
         Destino=data.Destino,
         Tipo_Retorno=data.Tipo_Retorno,
-        Observaciones_Retorno=data.Observaciones_Retorno
+        Observaciones_Retorno=data.Observaciones_Retorno,
+        Sede_Actual=data.Sede_Actual  # ← NUEVO CAMPO
     )
     db.add(nuevo)
     db.commit()
@@ -111,7 +119,8 @@ def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
                 "Fecha_Salida": item.Fecha_Salida,
                 "Destino": item.Destino,
                 "Tipo_Retorno": item.Tipo_Retorno,
-                "Observaciones_Retorno": item.Observaciones_Retorno
+                "Observaciones_Retorno": item.Observaciones_Retorno,
+                "Sede_Actual": item.Sede_Actual  # ← NUEVO CAMPO
             } for item in data.items
         ])
         db.commit()

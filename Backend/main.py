@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.database import engine, Base
 from app.routers import almacen
+from app.routers import ticket_webhook  
 
 
 Base.metadata.create_all(bind=engine)
@@ -28,3 +29,4 @@ def root():
 
 
 app.include_router(almacen.router)
+app.include_router(ticket_webhook.router) 

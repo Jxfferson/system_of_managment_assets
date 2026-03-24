@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
+import { 
+  Route, 
+  Routes, 
+  BrowserRouter as Router,
+  Navigate 
+} from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import ScrollToTop from './components/ScrollToTop';
-import HomePage from './pages/HomePage';
 import AdminPage from './pages/AdminPage';
-import SplashScreen from './components/SplashScreen';
-import Navigation from './components/Navigation';
+import SplashScreen from './components/SplashScreen'; 
+import ProtectedRoute from './components/ProtectedRoute';
 import AnimatedBackground from './components/AnimatedBackground';
 import LightRays from './components/LightRays';
 import { Toaster } from '@/components/ui/toaster';
@@ -16,9 +20,7 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
-      <Navigation />
 
-      {/* Fondos globales */}
       <AnimatedBackground />
       <div style={{ 
         position: 'fixed', 
@@ -26,7 +28,7 @@ function App() {
         left: 0, 
         width: '100%', 
         height: '100%', 
-        zIndex: 2,
+        zIndex: 1,
         pointerEvents: 'none',
         opacity: 0.9
       }}>
@@ -51,10 +53,10 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* Contenedor principal transparente para que se vean los rayos */}
-      <div className="min-h-screen text-slate-200 pt-20 relative z-10">
+      <div className="min-h-screen text-slate-200 relative z-20">
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </div>

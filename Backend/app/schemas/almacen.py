@@ -1,6 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import date
-from typing import Optional
+from typing import Optional, List
+
+
+SEDES_PERMITIDAS: List[str] = ["Connecta 80", "Caracol", "American BPS"]
 
 
 class AlmacenBase(BaseModel):
@@ -11,8 +14,16 @@ class AlmacenBase(BaseModel):
     Destino:                Optional[str] = None
     Tipo_Retorno:           Optional[str] = None
     Observaciones_Retorno:  Optional[str] = None
+    Sede_Actual:            Optional[str] = None 
     
     model_config = {"from_attributes": True}
+
+    @field_validator('Sede_Actual')
+    @classmethod
+    def validate_sede(cls, v):
+        if v is not None and v not in SEDES_PERMITIDAS:
+            raise ValueError(f"Sede no válida. Opciones: {', '.join(SEDES_PERMITIDAS)}")
+        return v
 
 
 class AlmacenCreate(AlmacenBase):
@@ -27,23 +38,23 @@ class AlmacenUpdate(BaseModel):
     Destino:                Optional[str] = None
     Tipo_Retorno:           Optional[str] = None
     Observaciones_Retorno:  Optional[str] = None
+    Sede_Actual:            Optional[str] = None
     
     model_config = {"from_attributes": True}
+
+    @field_validator('Sede_Actual')
+    @classmethod
+    def validate_sede(cls, v):
+        if v is not None and v not in SEDES_PERMITIDAS:
+            raise ValueError(f"Sede no válida. Opciones: {', '.join(SEDES_PERMITIDAS)}")
+        return v
 
 
 class AlmacenResponse(AlmacenBase):
     ID: int
-    
     model_config = {"from_attributes": True}
 
-
-class ItemCreate(BaseModel):
-    name: str
-    serial_prefix: Optional[str] = None
-
-
-class ItemResponse(BaseModel):
-    name: str
-    serial_prefix: str
-    
+class SedeResponse(BaseModel):
+    value: str
+    label: str
     model_config = {"from_attributes": True}

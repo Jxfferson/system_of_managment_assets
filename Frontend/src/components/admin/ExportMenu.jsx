@@ -21,11 +21,12 @@ const ExportMenu = ({ filteredAssets }) => {
     const dataToExport = filteredAssets.map(a => ({
       'Item': a.name || '',
       'Serial': a.serial || '',
-      'F. Ingreso': a.fecha_ingreso || '-',
-      'F. Salida': a.fecha_salida || '-',
+      'D. Entry': a.fecha_ingreso || '-',
+      'D. Exit': a.fecha_salida || '-',
       'Return Type': a.tipo_retorno || '-',
       'Observations': a.observaciones_retorno || '-',
-      'Destination': a.destino || '-'
+      'Destination': a.destino || '-',
+      'Current Headquarters': a.Sede_Actual || '-'
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);

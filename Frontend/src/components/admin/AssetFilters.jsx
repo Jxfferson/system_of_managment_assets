@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Building2 } from 'lucide-react';
 
 const selectClass = `
   w-full h-10 px-3 rounded-md border border-white/10
@@ -7,6 +8,9 @@ const selectClass = `
   focus:outline-none focus:ring-2 focus:ring-cyan-500
   appearance-none cursor-pointer
 `.trim();
+
+// ← Lista de sedes disponibles para el filtro
+const SEDES_DISPONIBLES = ["Connecta 80", "Caracol", "American BPS"];
 
 const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
   const update = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
@@ -22,7 +26,8 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
       fechaEntrada: '', 
       fechaSalida: '',
       tipo_retorno: '',
-      observaciones: ''
+      observaciones: '',
+      Sede_Actual: ''  // ← Resetear sede también
     });
   };
 
@@ -89,6 +94,7 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
           <option value="COL-TMO">COL-TMO</option>
           <option value="COL-ATT">COL-ATT</option>
           <option value="COS-80TMO">COS-80TMO</option>
+          <option value="COS-IBA">COS-IBA</option>
         </select>
       </div>
 
@@ -138,6 +144,22 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
       </div>
 
       <div className="space-y-2">
+        <label className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
+          Current Headquarters
+        </label>
+        <select
+          className={selectClass}
+          value={filters.Sede_Actual || ''}
+          onChange={(e) => update('Sede_Actual', e.target.value)}
+        >
+          <option value="">All Headquarters</option>
+          {SEDES_DISPONIBLES.map((sede) => (
+            <option key={sede} value={sede}>{sede}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
         <label className="text-slate-400 text-xs font-medium block">Return Type</label>
         <select
           className={selectClass}
@@ -145,9 +167,9 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
           onChange={(e) => update('tipo_retorno', e.target.value)}
         >
           <option value="">All Return Types</option>
-          <option value="Retorno">Retorno</option>
-          <option value="Perdida">Pérdida</option>
-          <option value="Daño">Daño</option>
+          <option value="Needs Repair">Needs Repair</option>
+          <option value="Needs Replacement">Needs Replacement</option>
+          <option value="Missing">Missing</option>
         </select>
       </div>
 

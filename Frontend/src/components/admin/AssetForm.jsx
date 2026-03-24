@@ -1,10 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Save, X } from 'lucide-react';
+import { Save, X, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { sanitizeString, sanitizeText } from '@/utils/sanitize';
+
+// ← Lista de sedes (debe coincidir con el backend)
+const SEDES_DISPONIBLES = ["Connecta 80", "Caracol", "American BPS"];
 
 const AssetForm = ({ 
   editingAsset, 
@@ -45,8 +48,7 @@ const AssetForm = ({
     ? `${serialPrefix}${String(nextSerialNumber).padStart(5, '0')}`
     : editingAsset.serial;
 
-
-const canHaveReturnType = !!editingAsset.fecha_salida;
+  const canHaveReturnType = !!editingAsset.fecha_salida;
 
   const handleSanitizedChange = (field, value) => {
     const sanitized = sanitizeString(value);
@@ -88,7 +90,6 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
     setEditingAsset({ 
       ...editingAsset, 
       fecha_salida: newFechaSalida,
-      // Si hay nueva fecha Y ya hay return type, borrarlo
       tipo_retorno: (newFechaSalida && editingAsset.tipo_retorno) ? '' : editingAsset.tipo_retorno,
       observaciones_retorno: (newFechaSalida && editingAsset.tipo_retorno) ? '' : editingAsset.observaciones_retorno
     });
@@ -107,18 +108,13 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
       <div className="grid md:grid-cols-2 gap-4">
         
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Item *
-          </label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Item *</label>
           <Select
             value={editingAsset.name}
             onChange={(e) => {
               const val = e.target.value;
               handleSelectChange('name', val);
-              setEditingAsset(prev => ({ 
-                ...prev, 
-                serial: isEditing ? prev.serial : '' 
-              }));
+              setEditingAsset(prev => ({ ...prev, serial: isEditing ? prev.serial : '' }));
             }}
           >
             <option value="">Select an item...</option>
@@ -141,9 +137,7 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Entry Date *
-          </label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Entry Date *</label>
           <Input
             type="date"
             value={editingAsset.fecha_ingreso || ''}
@@ -165,17 +159,33 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
           />
         </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
-          Destination
-        </label>
-        <Input
-          value={editingAsset.destino || ''}
-          onChange={handleDestinationChange}
-          placeholder="Enter destination (e.g., COS-TMO-C-060)"
-          className="bg-slate-800/50"
-        />
-      </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Destination</label>
+          <Input
+            value={editingAsset.destino || ''}
+            onChange={handleDestinationChange}
+            placeholder="Enter destination (e.g., COS-TMO-C-060)"
+            className="bg-slate-800/50"
+          />
+        </div>
+
+        {/* ← NUEVO: Campo Sede Actual */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            <Building2 className="w-3.5 h-3.5 inline mr-1.5 text-cyan-400" />
+            Current Headquarters
+          </label>
+          <Select
+            value={editingAsset.Sede_Actual || ''}
+            onChange={(e) => handleSelectChange('Sede_Actual', e.target.value)}
+            className="bg-slate-800/50"
+          >
+            <option value="">Select a headquarters...</option>
+            {SEDES_DISPONIBLES.map((sede) => (
+              <option key={sede} value={sede}>{sede}</option>
+            ))}
+          </Select>
+        </div>
 
         <div className={!canHaveReturnType ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -187,19 +197,15 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
             disabled={!canHaveReturnType}
           >
             <option value="">Select return type...</option>
-            <option value="Retorno">Retorno</option>
-            <option value="Perdida">Pérdida</option>
-            <option value="Daño">Daño</option>
+            <option value="Needs Repair">Needs Repair</option>
+            <option value="Needs Replacement">Needs Replacement</option>
+            <option value="Missing">Missing</option>
           </Select>
           {!canHaveReturnType && !editingAsset.fecha_salida && (
-            <p className="mt-1 text-xs text-amber-400">
-              Set exit date first to select return type
-            </p>
+            <p className="mt-1 text-xs text-amber-400">Set exit date first to select return type</p>
           )}
           {!canHaveReturnType && editingAsset.destino && (
-            <p className="mt-1 text-xs text-amber-400">
-              Clear destination first
-            </p>
+            <p className="mt-1 text-xs text-amber-400">Clear destination first</p>
           )}
         </div>
 
@@ -212,11 +218,11 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
             value={editingAsset.observaciones_retorno || ''}
             onChange={(e) => handleTextChange('observaciones_retorno', e.target.value)}
             placeholder={
-              editingAsset.tipo_retorno === 'Retorno' 
+              editingAsset.tipo_retorno === 'Missing' 
                 ? "Ej: Equipo en buen estado, retorna con todos los accesorios..."
-                : editingAsset.tipo_retorno === 'Perdida'
+                : editingAsset.tipo_retorno === 'Needs Repair'
                 ? "Ej: Reportado por..., fecha del incidente, denuncia..."
-                : editingAsset.tipo_retorno === 'Daño'
+                : editingAsset.tipo_retorno === 'Needs Replacement'
                 ? "Ej: Pantalla rota, no enciende, daño por caída..."
                 : "Optional notes about this asset..."
             }
@@ -225,13 +231,9 @@ const canHaveReturnType = !!editingAsset.fecha_salida;
             required={!!editingAsset.fecha_salida && (editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño')}
           />
           {editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño' ? (
-            <p className="mt-1 text-xs text-red-400">
-              Required for losses and damages
-            </p>
+            <p className="mt-1 text-xs text-red-400">Required for losses and damages</p>
           ) : (
-            <p className="mt-1 text-xs text-slate-500">
-              Additional information (optional)
-            </p>
+            <p className="mt-1 text-xs text-slate-500">Additional information (optional)</p>
           )}
         </div>
 
