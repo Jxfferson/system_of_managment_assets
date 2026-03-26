@@ -32,19 +32,19 @@ const AssetStats = ({ assets }) => {
   ).length;
 
   const returnTypeStats = useMemo(() => {
-    const needsRepair = assets.filter(a => 
-      a.tipo_retorno === 'Needs Repair'
+    const returns = assets.filter(a => 
+      a.tipo_retorno === 'Return'
     ).length;
     
     const missing = assets.filter(a => 
       a.tipo_retorno === 'Missing'
     ).length;
     
-    const needsReplacement = assets.filter(a => 
-      a.tipo_retorno === 'Needs Replacement'
+    const damage = assets.filter(a => 
+      a.tipo_retorno === 'Damage'
     ).length;
     
-    return { needsRepair, missing, needsReplacement };
+    return { returns, missing, damage };
   }, [assets]);
 
   return (
@@ -88,10 +88,10 @@ const AssetStats = ({ assets }) => {
         <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-500 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-              Needs Repair
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Return
             </span>
-            <span className="text-amber-400 font-semibold">{returnTypeStats.needsRepair}</span>
+            <span className="text-emerald-400 font-semibold">{returnTypeStats.returns}</span>
           </div>
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-500 flex items-center gap-1.5">
@@ -103,9 +103,9 @@ const AssetStats = ({ assets }) => {
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-500 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-500"></span>
-              Needs Replacement
+              Damage
             </span>
-            <span className="text-red-400 font-semibold">{returnTypeStats.needsReplacement}</span>
+            <span className="text-red-400 font-semibold">{returnTypeStats.damage}</span>
           </div>
         </div>
       </StatCard>

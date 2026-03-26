@@ -167,8 +167,8 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
           onChange={(e) => update('tipo_retorno', e.target.value)}
         >
           <option value="">All Return Types</option>
-          <option value="Needs Repair">Needs Repair</option>
-          <option value="Needs Replacement">Needs Replacement</option>
+          <option value="Return">Return</option>
+          <option value="Damage">Damage</option>
           <option value="Missing">Missing</option>
         </select>
       </div>

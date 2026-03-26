@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { sanitizeString, sanitizeText } from '@/utils/sanitize';
 
-// ← Lista de sedes (debe coincidir con el backend)
+
 const SEDES_DISPONIBLES = ["Connecta 80", "Caracol", "American BPS"];
 
 const AssetForm = ({ 
@@ -169,7 +169,6 @@ const AssetForm = ({
           />
         </div>
 
-        {/* ← NUEVO: Campo Sede Actual */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Building2 className="w-3.5 h-3.5 inline mr-1.5 text-cyan-400" />
@@ -197,8 +196,8 @@ const AssetForm = ({
             disabled={!canHaveReturnType}
           >
             <option value="">Select return type...</option>
-            <option value="Needs Repair">Needs Repair</option>
-            <option value="Needs Replacement">Needs Replacement</option>
+            <option value="Return">Return</option>
+            <option value="Damage">Damage</option>
             <option value="Missing">Missing</option>
           </Select>
           {!canHaveReturnType && !editingAsset.fecha_salida && (
@@ -212,26 +211,26 @@ const AssetForm = ({
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Observations
-            {editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño' ? ' *' : ''}
+            {editingAsset.tipo_retorno === 'Missing' || editingAsset.tipo_retorno === 'Damage' ? ' *' : ''}
           </label>
           <textarea
             value={editingAsset.observaciones_retorno || ''}
             onChange={(e) => handleTextChange('observaciones_retorno', e.target.value)}
             placeholder={
-              editingAsset.tipo_retorno === 'Missing' 
-                ? "Ej: Equipo en buen estado, retorna con todos los accesorios..."
-                : editingAsset.tipo_retorno === 'Needs Repair'
-                ? "Ej: Reportado por..., fecha del incidente, denuncia..."
-                : editingAsset.tipo_retorno === 'Needs Replacement'
-                ? "Ej: Pantalla rota, no enciende, daño por caída..."
+              editingAsset.tipo_retorno === 'Return' 
+                ? "Ej: Equipment in good condition, returns with all accessories..."
+                : editingAsset.tipo_retorno === 'Damage'
+                ? "Ej: Reported by..., incident date, claim number..."
+                : editingAsset.tipo_retorno === 'Missing'
+                ? "Ej: Last known location, circumstances of loss, report filed..."
                 : "Optional notes about this asset..."
             }
             rows={3}
             className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
-            required={!!editingAsset.fecha_salida && (editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño')}
+            required={!!editingAsset.fecha_salida && (editingAsset.tipo_retorno === 'Missing' || editingAsset.tipo_retorno === 'Damage')}
           />
-          {editingAsset.tipo_retorno === 'Perdida' || editingAsset.tipo_retorno === 'Daño' ? (
-            <p className="mt-1 text-xs text-red-400">Required for losses and damages</p>
+          {editingAsset.tipo_retorno === 'Missing' || editingAsset.tipo_retorno === 'Damage' ? (
+            <p className="mt-1 text-xs text-red-400">Required for Missing and Damage returns</p>
           ) : (
             <p className="mt-1 text-xs text-slate-500">Additional information (optional)</p>
           )}

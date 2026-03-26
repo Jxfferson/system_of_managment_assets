@@ -413,7 +413,7 @@ const handleSaveLot = async () => {
       destino: '', 
       tipo_retorno: '', 
       observaciones_retorno: '',
-      Sede_Actual: lotData.Sede_Actual || null  // ← NUEVO CAMPO ✅
+      Sede_Actual: lotData.Sede_Actual || null 
     });
     nextSerialNum++;
   }
@@ -463,7 +463,7 @@ const handleSaveLot = async () => {
 
   return (
     <>
-      <div className="fixed top-6 left-12 right-0 z-50 px-6 py-4">
+      <div className="fixed top-6 left-12 w-fit z-50 px-6 py-4">
         <div className="flex items-center gap-2">
           <span className="text-2xl font-bold tracking-tighter text-gray-200">
             OTD

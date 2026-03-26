@@ -159,16 +159,16 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
     if (!tipo) return null;
 
     const config = {
-      'Needs Repair': {
+      'Return': {
         className: 'bg-slate-700/50 text-slate-300',
         icon: <Wrench className="w-3 h-3" />
       },
-      'Needs Replacement': {
-        className: 'bg-slate-700/50 text-red-300',
+      'Damage': {
+        className: 'bg-slate-700/50 text-slate-300',
         icon: <AlertCircle className="w-3 h-3" />
       },
       'Missing': {
-        className: 'bg-slate-700/50 text-slate-300',
+        className: 'bg-slate-700/50 text-red-300',
         icon: <HelpCircle className="w-3 h-3" />
       }
     };
