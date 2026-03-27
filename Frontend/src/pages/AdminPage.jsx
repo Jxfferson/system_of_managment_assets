@@ -1,15 +1,14 @@
+// Frontend/src/pages/AdminPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
 
 import AdminLogin from '@/components/admin/AdminLogin';
-import AdminHeader from '@/components/admin/AdminHeader';
 import AdminActions from '@/components/admin/AdminActions';
 import AssetStats from '@/components/admin/AssetStats';
 import AssetFilters from '@/components/admin/AssetFilters';
 import AssetForm from '@/components/admin/AssetForm';
 import AssetTable from '@/components/admin/AssetTable';
-import ExportMenu from '@/components/admin/ExportMenu';
 import AssetLotForm from '@/components/admin/AssetLotForm';
 import ItemManager from '../components/admin/ItemManager';
 import ChangePasswordModal from '@/components/admin/ChangePasswordModal';
@@ -90,72 +89,12 @@ const AdminPage = () => {
   const navigate = useNavigate();
   
   const formContainerRef = useRef(null);
+  const isLoadingRef = useRef(false);
 
-  useEffect(() => {
-    if (!localStorage.getItem('csrf_token')) {
-      localStorage.setItem('csrf_token', crypto.randomUUID());
-    }
-    const authStatus = localStorage.getItem('isAuthenticated');
-    const authToken = localStorage.getItem('auth_token');
-    if (authStatus === 'true' && authToken) setIsAuthenticated(true);
-
-    const storedLockout = localStorage.getItem('admin_lockout_until');
-    const storedAttempts = localStorage.getItem('admin_login_attempts');
-    if (storedLockout) {
-      const lockoutTime = parseInt(storedLockout, 10);
-      if (!isNaN(lockoutTime) && Date.now() < lockoutTime) {
-        setLockoutUntil(lockoutTime);
-        setLoginAttempts(parseInt(storedAttempts, 10) || 0);
-      } else {
-        localStorage.removeItem('admin_lockout_until');
-        localStorage.removeItem('admin_login_attempts');
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!lockoutUntil) return;
-    const timer = setInterval(() => {
-      if (Date.now() >= lockoutUntil) {
-        setLockoutUntil(null);
-        setLoginAttempts(0);
-        localStorage.removeItem('admin_lockout_until');
-        localStorage.removeItem('admin_login_attempts');
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [lockoutUntil]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
-  }, [itemPrefixMap]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let timeout;
-    const resetTimer = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => handleLogout(), 30 * 60 * 1000);
-    };
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
-    events.forEach(event => window.addEventListener(event, resetTimer, { passive: true }));
-    resetTimer();
-    return () => {
-      clearTimeout(timeout);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-    };
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (showForm && formContainerRef.current) {
-      formContainerRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      });
-    }
-  }, [showForm]);
-
+  // ======================== FUNCIONES ========================
   const loadAssets = async () => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
     setLoading(true);
     try {
       const data = await getAssets();
@@ -176,65 +115,20 @@ const AdminPage = () => {
       toast({ title: "Error", description: 'Error loading assets: ' + err.message, variant: "destructive" });
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated) loadAssets();
-  }, [isAuthenticated]);
-
-  useKeyboardShortcut('ctrl+alt+n', () => {
-    if (activeTab === 'assets') {
-      toast({ title: "New Asset" });
-      setShowForm(prev => {
-        if (prev) {
-          setEditingAsset(initialAsset);
-          return false;
-        }
-        setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
-        return true;
-      });
-    }
-  }, { enabled: isAuthenticated });
-
-  useKeyboardShortcut('ctrl+alt+l', () => {
-    if (activeTab === 'assets') {
-      toast({ title: "New Lot" });
-      setShowLotForm(true);
-    }
-  }, { enabled: isAuthenticated });
-
-  useKeyboardShortcut('ctrl+alt+f', () => {
-    if (activeTab === 'assets') {
-      toast({ title: "Filters" });
-      setShowFilters(prev => !prev);
-    }
-  }, { enabled: isAuthenticated });
-
-  const compareDates = (date1, date2) => {
-    if (!date1 || !date2) return false;
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('csrf_token');
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('admin_login_attempts');
+    localStorage.removeItem('admin_lockout_until');
+    navigate('/admin', { replace: true });
+    toast({ title: "Logout", description: "Session closed successfully" });
   };
-
-  const filteredAssets = assets.filter(asset => {
-    const matchSerial = filters.serial === '' || (asset.serial && asset.serial.toLowerCase().includes(filters.serial.toLowerCase()));
-    const matchDestino = filters.destino === '' || (asset.destino && asset.destino.toLowerCase().includes(filters.destino.toLowerCase()));
-    const matchItem = filters.item === '' || asset.name === filters.item;
-    const matchSede = filters.Sede_Actual === '' || asset.Sede_Actual === filters.Sede_Actual;
-    let matchFechaEntrada = true;
-    if (filters.fechaEntrada !== '') matchFechaEntrada = compareDates(asset.fecha_ingreso, filters.fechaEntrada);
-    let matchFechaSalida = true;
-    if (filters.fechaSalida !== '') matchFechaSalida = compareDates(asset.fecha_salida, filters.fechaSalida);
-    let matchReturnType = true;
-    if (filters.tipo_retorno !== '') matchReturnType = asset.tipo_retorno === filters.tipo_retorno;
-    let matchObservaciones = true;
-    if (filters.observaciones !== '') matchObservaciones = asset.observaciones_retorno && asset.observaciones_retorno.toLowerCase().includes(filters.observaciones.toLowerCase());
-    return matchSerial && matchDestino && matchItem && matchSede && matchFechaEntrada && matchFechaSalida && matchReturnType && matchObservaciones;
-  });
 
   const handleLogin = (enteredPassword) => {
     if (!enteredPassword || enteredPassword.length < 4) {
@@ -279,17 +173,6 @@ const AdminPage = () => {
       }
       toast({ title: "Error", description: "Incorrect password", variant: "destructive" });
     }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('csrf_token');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('admin_login_attempts');
-    localStorage.removeItem('admin_lockout_until');
-    navigate('/admin', { replace: true });
-    toast({ title: "Logout", description: "Session closed successfully" });
   };
 
   const handlePasswordChangeSuccess = () => {
@@ -389,52 +272,52 @@ const AdminPage = () => {
     }
   };
 
-const handleSaveLot = async () => {
-  if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
-    toast({ title: "Error", description: "Item, Quantity and Fecha Entry are required", variant: "destructive" });
-    return;
-  }
-  const quantity = parseInt(lotData.quantity);
-  if (quantity <= 4 || quantity > 999) {
-    toast({ title: "Error", description: "Quantity must be between 5 and 999", variant: "destructive" });
-    return;
-  }
-  const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
-  let nextSerialNum = getNextSerialNumberByItem(lotData.item);
-  const newAssets = [];
-  for (let i = 0; i < quantity; i++) {
-    const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
-    if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
-    newAssets.push({ 
-      name: lotData.item, 
-      serial, 
-      fecha_ingreso: lotData.fecha_ingreso, 
-      fecha_salida: '', 
-      destino: '', 
-      tipo_retorno: '', 
-      observaciones_retorno: '',
-      Sede_Actual: lotData.Sede_Actual || null 
-    });
-    nextSerialNum++;
-  }
-  if (newAssets.length === 0) {
-    toast({ title: "Error", description: "Could not add any assets. Serials may already exist.", variant: "destructive" });
-    return;
-  }
-  try {
-    await createAssetLotBulk(newAssets);
-    await loadAssets();
-    setShowLotForm(false);
-    setLotData(initialLotData);
-    toast({ title: "Assets added", description: `${newAssets.length} ${lotData.item} added to inventory` });
-  } catch (err) {
-    if (err.message.includes('401') || err.message.includes('unauthorized')) {
-      handleLogout();
+  const handleSaveLot = async () => {
+    if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
+      toast({ title: "Error", description: "Item, Quantity and Fecha Entry are required", variant: "destructive" });
       return;
     }
-    toast({ title: "Error", description: err.message, variant: "destructive" });
-  }
-};
+    const quantity = parseInt(lotData.quantity);
+    if (quantity <= 4 || quantity > 999) {
+      toast({ title: "Error", description: "Quantity must be between 5 and 999", variant: "destructive" });
+      return;
+    }
+    const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
+    let nextSerialNum = getNextSerialNumberByItem(lotData.item);
+    const newAssets = [];
+    for (let i = 0; i < quantity; i++) {
+      const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
+      if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
+      newAssets.push({ 
+        name: lotData.item, 
+        serial, 
+        fecha_ingreso: lotData.fecha_ingreso, 
+        fecha_salida: '', 
+        destino: '', 
+        tipo_retorno: '', 
+        observaciones_retorno: '',
+        Sede_Actual: lotData.Sede_Actual || null
+      });
+      nextSerialNum++;
+    }
+    if (newAssets.length === 0) {
+      toast({ title: "Error", description: "Could not add any assets. Serials may already exist.", variant: "destructive" });
+      return;
+    }
+    try {
+      await createAssetLotBulk(newAssets);
+      await loadAssets();
+      setShowLotForm(false);
+      setLotData(initialLotData);
+      toast({ title: "Assets added", description: `${newAssets.length} ${lotData.item} added to inventory` });
+    } catch (err) {
+      if (err.message.includes('401') || err.message.includes('unauthorized')) {
+        handleLogout();
+        return;
+      }
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleDelete = async (id) => {
     try {
@@ -455,6 +338,123 @@ const handleSaveLot = async () => {
     setShowForm(true);
   };
 
+  const compareDates = (date1, date2) => {
+    if (!date1 || !date2) return false;
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+  };
+
+  const filteredAssets = assets.filter(asset => {
+    const matchSerial = filters.serial === '' || (asset.serial && asset.serial.toLowerCase().includes(filters.serial.toLowerCase()));
+    const matchDestino = filters.destino === '' || (asset.destino && asset.destino.toLowerCase().includes(filters.destino.toLowerCase()));
+    const matchItem = filters.item === '' || asset.name === filters.item;
+    const matchSede = filters.Sede_Actual === '' || asset.Sede_Actual === filters.Sede_Actual;
+    let matchFechaEntrada = true;
+    if (filters.fechaEntrada !== '') matchFechaEntrada = compareDates(asset.fecha_ingreso, filters.fechaEntrada);
+    let matchFechaSalida = true;
+    if (filters.fechaSalida !== '') matchFechaSalida = compareDates(asset.fecha_salida, filters.fechaSalida);
+    let matchReturnType = true;
+    if (filters.tipo_retorno !== '') matchReturnType = asset.tipo_retorno === filters.tipo_retorno;
+    let matchObservaciones = true;
+    if (filters.observaciones !== '') matchObservaciones = asset.observaciones_retorno && asset.observaciones_retorno.toLowerCase().includes(filters.observaciones.toLowerCase());
+    return matchSerial && matchDestino && matchItem && matchSede && matchFechaEntrada && matchFechaSalida && matchReturnType && matchObservaciones;
+  });
+
+  // ======================== EFECTOS ========================
+  useEffect(() => {
+    if (!localStorage.getItem('csrf_token')) {
+      localStorage.setItem('csrf_token', crypto.randomUUID());
+    }
+
+    const storedLockout = localStorage.getItem('admin_lockout_until');
+    const storedAttempts = localStorage.getItem('admin_login_attempts');
+    if (storedLockout) {
+      const lockoutTime = parseInt(storedLockout, 10);
+      if (!isNaN(lockoutTime) && Date.now() < lockoutTime) {
+        setLockoutUntil(lockoutTime);
+        setLoginAttempts(parseInt(storedAttempts, 10) || 0);
+      } else {
+        localStorage.removeItem('admin_lockout_until');
+        localStorage.removeItem('admin_login_attempts');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    loadAssets();
+
+    const intervalId = setInterval(() => {
+      loadAssets();
+    }, 300000); 
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
+  }, [itemPrefixMap]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let timeout;
+    const resetTimer = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => handleLogout(), 30 * 60 * 1000);
+    };
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
+    events.forEach(event => window.addEventListener(event, resetTimer, { passive: true }));
+    resetTimer();
+    return () => {
+      clearTimeout(timeout);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (showForm && formContainerRef.current) {
+      formContainerRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  }, [showForm]);
+
+  useKeyboardShortcut('ctrl+alt+n', () => {
+    if (activeTab === 'assets') {
+      toast({ title: "New Asset" });
+      setShowForm(prev => {
+        if (prev) {
+          setEditingAsset(initialAsset);
+          return false;
+        }
+        setEditingAsset({ ...initialAsset, fecha_ingreso: new Date().toISOString().split('T')[0] });
+        return true;
+      });
+    }
+  }, { enabled: isAuthenticated });
+
+  useKeyboardShortcut('ctrl+alt+l', () => {
+    if (activeTab === 'assets') {
+      toast({ title: "New Lot" });
+      setShowLotForm(true);
+    }
+  }, { enabled: isAuthenticated });
+
+  useKeyboardShortcut('ctrl+alt+f', () => {
+    if (activeTab === 'assets') {
+      toast({ title: "Filters" });
+      setShowFilters(prev => !prev);
+    }
+  }, { enabled: isAuthenticated });
+
+  // ======================== RENDER ========================
   if (!isAuthenticated) {
     const isLocked = lockoutUntil && Date.now() < lockoutUntil;
     const timeLeft = isLocked ? Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000)) : 0;
@@ -462,82 +462,103 @@ const handleSaveLot = async () => {
   }
 
   return (
-    <>
-      <div className="fixed top-6 left-12 w-fit z-50 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold tracking-tighter text-gray-200">
+    <div className="min-h-screen px-6 pt-16 pb-12 overflow-x-auto">
+      <div className="container mx-auto max-w-[90rem]">
+        {/* Título principal */}
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-3xl font-bold tracking-tighter text-gray-200">
             OTD
           </span>
-          <span className="text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-            Support
+          <span className="text-3xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+            Assets Management
           </span>
         </div>
-      </div>
 
-      <div className="min-h-screen px-6 pt-20 pb-12 overflow-x-auto">
-        <div className="container mx-auto max-w-[90rem]">  
-          <div className="flex justify-between items-end mb-6 flex-wrap gap-3">
-            <AdminHeader activeTab={activeTab} onTabChange={setActiveTab} />
-            <AdminActions
-              activeTab={activeTab}
-              onAdd={handleAdd}
-              onAddLot={() => setShowLotForm(true)}
-              onToggleFilters={() => setShowFilters(prev => !prev)}
-              filteredAssets={filteredAssets}
-              onLogout={handleLogout}
-              onChangePassword={() => setShowChangePasswordModal(true)}
-            />
+        {/* Barra de navegación con pestañas y acciones */}
+        <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
+          {/* Pestañas personalizadas sin título */}
+          <div className="flex gap-1 bg-slate-800/40 p-1 rounded-lg backdrop-blur-sm">
+            <button
+              onClick={() => setActiveTab('assets')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'assets'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              Assets
+            </button>
+            <button
+              onClick={() => setActiveTab('items')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'items'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              Items
+            </button>
           </div>
 
-          {activeTab === 'assets' ? (
-            <>
-              <AssetStats assets={assets} />
-              {showFilters && <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} />}
-              {loading && <div className="text-center text-slate-400 py-8">Cargando datos...</div>}
-              {showForm && (
-                <div ref={formContainerRef} className="scroll-mt-32 mb-6">
-                  <AssetForm
-                    editingAsset={editingAsset}
-                    setEditingAsset={setEditingAsset}
-                    onSave={handleSave}
-                    onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }}
-                    isEditing={!!editingAsset.id}
-                    nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null}
-                    availableItems={Object.keys(itemPrefixMap)}
-                    itemPrefixMap={itemPrefixMap}
-                  />
-                </div>
-              )}
-              <AssetLotForm 
-                isOpen={showLotForm} 
-                onClose={() => { setShowLotForm(false); setLotData(initialLotData); }} 
-                lotData={lotData} 
-                setLotData={setLotData} 
-                onSave={handleSaveLot} 
-                nextSerialNumber={getNextSerialNumberByItem(lotData.item)} 
-                initialItems={Object.keys(itemPrefixMap)} 
-                initialPrefixMap={itemPrefixMap} 
-                onItemCreated={(name, prefix) => setItemPrefixMap(prev => ({ ...prev, [name]: prefix }))} 
-              />
-              <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
-            </>
-          ) : (
-            <ItemManager
-              items={itemPrefixMap}
-              onItemCreated={handleItemCreated}              
-              onItemUpdated={handleItemUpdated}
-              onItemDeleted={handleItemDeleted}             
-            /> 
-          )}
-
-          <ChangePasswordModal 
-            isOpen={showChangePasswordModal} 
-            onClose={() => setShowChangePasswordModal(false)} 
-            onSuccess={handlePasswordChangeSuccess} 
+          <AdminActions
+            activeTab={activeTab}
+            onAdd={handleAdd}
+            onAddLot={() => setShowLotForm(true)}
+            onToggleFilters={() => setShowFilters(prev => !prev)}
+            filteredAssets={filteredAssets}
+            onLogout={handleLogout}
+            onChangePassword={() => setShowChangePasswordModal(true)}
           />
         </div>
+
+        {activeTab === 'assets' ? (
+          <>
+            <AssetStats assets={assets} />
+            {showFilters && <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} />}
+            {loading && <div className="text-center text-slate-400 py-8">Cargando datos...</div>}
+            {showForm && (
+              <div ref={formContainerRef} className="scroll-mt-32 mb-6">
+                <AssetForm
+                  editingAsset={editingAsset}
+                  setEditingAsset={setEditingAsset}
+                  onSave={handleSave}
+                  onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }}
+                  isEditing={!!editingAsset.id}
+                  nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null}
+                  availableItems={Object.keys(itemPrefixMap)}
+                  itemPrefixMap={itemPrefixMap}
+                />
+              </div>
+            )}
+            <AssetLotForm
+              isOpen={showLotForm}
+              onClose={() => { setShowLotForm(false); setLotData(initialLotData); }}
+              lotData={lotData}
+              setLotData={setLotData}
+              onSave={handleSaveLot}
+              nextSerialNumber={getNextSerialNumberByItem(lotData.item)}
+              initialItems={Object.keys(itemPrefixMap)}
+              initialPrefixMap={itemPrefixMap}
+              onItemCreated={(name, prefix) => setItemPrefixMap(prev => ({ ...prev, [name]: prefix }))}
+            />
+            <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
+          </>
+        ) : (
+          <ItemManager
+            items={itemPrefixMap}
+            onItemCreated={handleItemCreated}
+            onItemUpdated={handleItemUpdated}
+            onItemDeleted={handleItemDeleted}
+          />
+        )}
+
+        <ChangePasswordModal
+          isOpen={showChangePasswordModal}
+          onClose={() => setShowChangePasswordModal(false)}
+          onSuccess={handlePasswordChangeSuccess}
+        />
       </div>
-    </>
+    </div>
   );
 };
 

@@ -31,6 +31,18 @@ const AdminLogin = ({ onLogin, error, isLocked, timeLeft }) => {
         className="w-full max-w-2xl p-12 rounded-3xl bg-slate-900/60 backdrop-blur-2xl border border-white/20 shadow-2xl"
       >
         <div className="text-center mb-10">
+          {/* Títulos de la aplicación */}
+          <div className="mb-6">
+            <h2 className="text-3xl font-bold tracking-tighter mb-1">
+              <span className="text-gray-200">OTD</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                Support
+              </span>
+            </h2>
+            <p className="text-slate-400 text-sm">Asset Management System</p>
+          </div>
+
+          {/* Ícono y título de Admin */}
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 mb-6 shadow-lg shadow-cyan-500/30">
             {isLocked ? (
               <Lock className="w-10 h-10 text-white" />
@@ -94,19 +106,6 @@ const AdminLogin = ({ onLogin, error, isLocked, timeLeft }) => {
             {isLocked ? 'Blocked' : 'Login'}
           </Button>
         </form>
-
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => navigate('/')}
-            disabled={isLocked}
-            className="text-sm text-slate-400 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Home
-          </button>
-        </div>
       </motion.div>
     </div>
   );

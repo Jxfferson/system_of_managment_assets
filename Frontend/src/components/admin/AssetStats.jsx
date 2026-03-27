@@ -7,7 +7,7 @@ const StatCard = ({ title, value, icon: Icon, colorClass, bgClass, subtitle, chi
       <div>
         <p className="text-slate-500 text-xs mb-1">{title}</p>
         <p className={`text-2xl font-semibold ${colorClass}`}>{value}</p>
-        {subtitle && <p className="text-slate-600 text-xs mt-1">{subtitle}</p>}
+        {subtitle && <p className="text-white-600 text-xs mt-1">{subtitle}</p>}
       </div>
       {Icon && (
         <div className={`w-10 h-10 rounded-lg ${bgClass} flex items-center justify-center`}>
@@ -54,8 +54,8 @@ const AssetStats = ({ assets }) => {
         title="Total Assets"
         value={totalAssets}
         icon={Package}
-        colorClass="text-slate-300"
-        bgClass="bg-slate-500/10"
+        colorClass="text-blue-400"
+        bgClass="bg-blue-500/10"
         subtitle="Registered in the system"
       />
 
@@ -63,8 +63,8 @@ const AssetStats = ({ assets }) => {
         title="Total Stock"
         value={totalEntries}
         icon={ArrowDownToLine}
-        colorClass="text-emerald-400"
-        bgClass="bg-emerald-500/10"
+        colorClass="text-blue-400"
+        bgClass="bg-blue-500/10"
         subtitle="Currently in inventory"
       />
 
@@ -72,8 +72,8 @@ const AssetStats = ({ assets }) => {
         title="Total Exits"
         value={totalExits}
         icon={ArrowUpFromLine}
-        colorClass="text-amber-400"
-        bgClass="bg-amber-500/10"
+        colorClass="text-blue-400"
+        bgClass="bg-blue-500/10"
         subtitle="With exit date"
       />
 
@@ -81,8 +81,8 @@ const AssetStats = ({ assets }) => {
         title="Distribution"
         value=""
         icon={null}
-        colorClass="text-cyan-400"
-        bgClass="bg-cyan-500/10"
+        colorClass="text-blue-400"
+        bgClass="bg-blue-500/10"
         subtitle="By return type"
       >
         <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
