@@ -88,24 +88,24 @@ const AssetStats = ({ assets }) => {
         <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-500 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
               Return
             </span>
-            <span className="text-emerald-400 font-semibold">{returnTypeStats.returns}</span>
+            <span className="text-slate-400 font-semibold">{returnTypeStats.returns}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-500 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-400"></span>
+              Missing
+            </span>
+            <span className="text-red-400 font-semibold">{returnTypeStats.missing}</span>
           </div>
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-500 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-              Missing
-            </span>
-            <span className="text-slate-400 font-semibold">{returnTypeStats.missing}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-500 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
               Damage
             </span>
-            <span className="text-red-400 font-semibold">{returnTypeStats.damage}</span>
+            <span className="text-slate-400 font-semibold">{returnTypeStats.damage}</span>
           </div>
         </div>
       </StatCard>
