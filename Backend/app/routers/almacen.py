@@ -120,7 +120,7 @@ def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
                 "Destino": item.Destino,
                 "Tipo_Retorno": item.Tipo_Retorno,
                 "Observaciones_Retorno": item.Observaciones_Retorno,
-                "Sede_Actual": item.Sede_Actual  # ← NUEVO CAMPO
+                "Sede_Actual": item.Sede_Actual 
             } for item in data.items
         ])
         db.commit()

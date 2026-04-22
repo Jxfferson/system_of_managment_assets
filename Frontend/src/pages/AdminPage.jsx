@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
 
@@ -91,6 +91,7 @@ const AdminPage = () => {
   
   const formContainerRef = useRef(null);
 
+  // --- AUTH & LOCKOUT EFFECTS ---
   useEffect(() => {
     if (!localStorage.getItem('csrf_token')) {
       localStorage.setItem('csrf_token', crypto.randomUUID());
@@ -130,6 +131,19 @@ const AdminPage = () => {
     localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
   }, [itemPrefixMap]);
 
+  // --- LOGOUT HANDLER (Wrapped in useCallback) ---
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('csrf_token');
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('admin_login_attempts');
+    localStorage.removeItem('admin_lockout_until');
+    navigate('/admin', { replace: true });
+    toast({ title: "Logout", description: "Session closed successfully" });
+  }, [navigate]);
+
+  // --- IDLE TIMEOUT ---
   useEffect(() => {
     if (!isAuthenticated) return;
     let timeout;
@@ -144,7 +158,7 @@ const AdminPage = () => {
       clearTimeout(timeout);
       events.forEach(event => window.removeEventListener(event, resetTimer));
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, handleLogout]);
 
   useEffect(() => {
     if (showForm && formContainerRef.current) {
@@ -155,7 +169,10 @@ const AdminPage = () => {
     }
   }, [showForm]);
 
-  const loadAssets = async () => {
+  // --- DATA LOADING ---
+  
+  // Initial Load (Syncs Assets AND Prefixes)
+  const loadAssets = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAssets();
@@ -177,12 +194,52 @@ const AdminPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleLogout]);
+
+  // Refresh Load (Only Updates Assets for Polling)
+  const refreshAssets = useCallback(async () => {
+    // No setLoading(true) to avoid UI flicker during polling
+    try {
+      const data = await getAssets();
+      setAssets(data);
+    } catch (err) {
+      if (err.message.includes('401') || err.message.includes('unauthorized')) {
+        handleLogout();
+        return;
+      }
+      // Silent fail for polling to avoid spamming toasts
+      console.error("Polling error:", err);
+    }
+  }, [handleLogout]);
 
   useEffect(() => {
     if (isAuthenticated) loadAssets();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadAssets]);
 
+  // --- POLLING EFFECT (Actualización Constante) ---
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const POLL_INTERVAL = 10000; // 10 segundos
+    let intervalId;
+
+    const poll = () => {
+      // No actualizar si hay formularios abiertos para evitar conflictos de edición
+      if (showForm || showLotForm) return;
+      // No actualizar si la pestaña no está visible
+      if (document.hidden) return;
+      
+      refreshAssets();
+    };
+
+    // Ejecutar inmediatamente y luego cada intervalo
+    poll();
+    intervalId = setInterval(poll, POLL_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated, showForm, showLotForm, refreshAssets]);
+
+  // --- SHORTCUTS ---
   useKeyboardShortcut('ctrl+alt+n', () => {
     if (activeTab === 'assets') {
       toast({ title: "New Asset" });
@@ -211,6 +268,7 @@ const AdminPage = () => {
     }
   }, { enabled: isAuthenticated });
 
+  // --- HELPERS ---
   const compareDates = (date1, date2) => {
     if (!date1 || !date2) return false;
     const d1 = new Date(date1);
@@ -236,6 +294,7 @@ const AdminPage = () => {
     return matchSerial && matchDestino && matchItem && matchSede && matchFechaEntrada && matchFechaSalida && matchReturnType && matchObservaciones;
   });
 
+  // --- ACTIONS ---
   const handleLogin = (enteredPassword) => {
     if (!enteredPassword || enteredPassword.length < 4) {
       setError('Contraseña muy corta');
@@ -279,17 +338,6 @@ const AdminPage = () => {
       }
       toast({ title: "Error", description: "Incorrect password", variant: "destructive" });
     }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('csrf_token');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('admin_login_attempts');
-    localStorage.removeItem('admin_lockout_until');
-    navigate('/admin', { replace: true });
-    toast({ title: "Logout", description: "Session closed successfully" });
   };
 
   const handlePasswordChangeSuccess = () => {
@@ -389,52 +437,52 @@ const AdminPage = () => {
     }
   };
 
-const handleSaveLot = async () => {
-  if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
-    toast({ title: "Error", description: "Item, Quantity and Fecha Entry are required", variant: "destructive" });
-    return;
-  }
-  const quantity = parseInt(lotData.quantity);
-  if (quantity <= 4 || quantity > 999) {
-    toast({ title: "Error", description: "Quantity must be between 5 and 999", variant: "destructive" });
-    return;
-  }
-  const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
-  let nextSerialNum = getNextSerialNumberByItem(lotData.item);
-  const newAssets = [];
-  for (let i = 0; i < quantity; i++) {
-    const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
-    if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
-    newAssets.push({ 
-      name: lotData.item, 
-      serial, 
-      fecha_ingreso: lotData.fecha_ingreso, 
-      fecha_salida: '', 
-      destino: '', 
-      tipo_retorno: '', 
-      observaciones_retorno: '',
-      Sede_Actual: lotData.Sede_Actual || null 
-    });
-    nextSerialNum++;
-  }
-  if (newAssets.length === 0) {
-    toast({ title: "Error", description: "Could not add any assets. Serials may already exist.", variant: "destructive" });
-    return;
-  }
-  try {
-    await createAssetLotBulk(newAssets);
-    await loadAssets();
-    setShowLotForm(false);
-    setLotData(initialLotData);
-    toast({ title: "Assets added", description: `${newAssets.length} ${lotData.item} added to inventory` });
-  } catch (err) {
-    if (err.message.includes('401') || err.message.includes('unauthorized')) {
-      handleLogout();
+  const handleSaveLot = async () => {
+    if (!lotData.item || !lotData.quantity || !lotData.fecha_ingreso) {
+      toast({ title: "Error", description: "Item, Quantity and Fecha Entry are required", variant: "destructive" });
       return;
     }
-    toast({ title: "Error", description: err.message, variant: "destructive" });
-  }
-};
+    const quantity = parseInt(lotData.quantity);
+    if (quantity <= 4 || quantity > 999) {
+      toast({ title: "Error", description: "Quantity must be between 5 and 999", variant: "destructive" });
+      return;
+    }
+    const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
+    let nextSerialNum = getNextSerialNumberByItem(lotData.item);
+    const newAssets = [];
+    for (let i = 0; i < quantity; i++) {
+      const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
+      if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
+      newAssets.push({ 
+        name: lotData.item, 
+        serial, 
+        fecha_ingreso: lotData.fecha_ingreso, 
+        fecha_salida: '', 
+        destino: '', 
+        tipo_retorno: '', 
+        observaciones_retorno: '',
+        Sede_Actual: lotData.Sede_Actual || null 
+      });
+      nextSerialNum++;
+    }
+    if (newAssets.length === 0) {
+      toast({ title: "Error", description: "Could not add any assets. Serials may already exist.", variant: "destructive" });
+      return;
+    }
+    try {
+      await createAssetLotBulk(newAssets);
+      await loadAssets();
+      setShowLotForm(false);
+      setLotData(initialLotData);
+      toast({ title: "Assets added", description: `${newAssets.length} ${lotData.item} added to inventory` });
+    } catch (err) {
+      if (err.message.includes('401') || err.message.includes('unauthorized')) {
+        handleLogout();
+        return;
+      }
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleDelete = async (id) => {
     try {
