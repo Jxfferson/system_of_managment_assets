@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
-
+import { StatisticsPage } from '@/components/statistics';
 import AdminLogin from '@/components/admin/AdminLogin';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminActions from '@/components/admin/AdminActions';
@@ -11,8 +11,9 @@ import AssetForm from '@/components/admin/AssetForm';
 import AssetTable from '@/components/admin/AssetTable';
 import ExportMenu from '@/components/admin/ExportMenu';
 import AssetLotForm from '@/components/admin/AssetLotForm';
-import ItemManager from '../components/admin/ItemManager';
+import ItemManager from '@/components/admin/ItemManager';
 import ChangePasswordModal from '@/components/admin/ChangePasswordModal';
+import ItemDetailPage from '@/components/item-detail/ItemDetailPage';
 
 import { verifyPassword } from '@/utils/passwordLocal';
 import { sanitizeString, isSafeInput } from '@/utils/sanitize';
@@ -22,7 +23,6 @@ import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 const DEFAULT_ITEMS = [
   'Teclado ESENSES Basico USB',
   'Mouse Alámbrico HP Óptico negro 100',
-  'Ethernet 3.0 LAN a USB',
   'Cable Display Port a VGA 1,8',
   'Cable Display VGA a VGA 1,8',
   'Extension de Cable eléctrico'
@@ -31,7 +31,6 @@ const DEFAULT_ITEMS = [
 const DEFAULT_PREFIXES = {
   'Teclado ESENSES Basico USB': 'K',
   'Mouse Alámbrico HP Óptico negro 100': 'M',
-  'Ethernet 3.0 LAN a USB': 'ELU',
   'Cable Display Port a VGA 1,8': 'DPVG',
   'Cable Display VGA a VGA 1,8': 'VGAV',
   'Extension de Cable eléctrico': 'EXT'
@@ -88,8 +87,13 @@ const AdminPage = () => {
   
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   
   const formContainerRef = useRef(null);
+
+  // Detectar si estamos en la vista de detalle de un item
+  const isItemDetail = location.pathname.startsWith('/admin/items/');
+  const currentItemName = isItemDetail ? decodeURIComponent(location.pathname.split('/').pop() || '') : null;
 
   // --- AUTH & LOCKOUT EFFECTS ---
   useEffect(() => {
@@ -131,7 +135,14 @@ const AdminPage = () => {
     localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
   }, [itemPrefixMap]);
 
-  // --- LOGOUT HANDLER (Wrapped in useCallback) ---
+  // --- URL SYNC EFFECT (NUEVO - para que funcione desde AssetStats) ---
+  useEffect(() => {
+    if (location.pathname === '/admin/statistics' && activeTab !== 'statistics') {
+      setActiveTab('statistics');
+    }
+  }, [location.pathname, activeTab]);
+
+  // --- LOGOUT HANDLER ---
   const handleLogout = useCallback(() => {
     setIsAuthenticated(false);
     localStorage.removeItem('auth_token');
@@ -170,8 +181,6 @@ const AdminPage = () => {
   }, [showForm]);
 
   // --- DATA LOADING ---
-  
-  // Initial Load (Syncs Assets AND Prefixes)
   const loadAssets = useCallback(async () => {
     setLoading(true);
     try {
@@ -196,9 +205,7 @@ const AdminPage = () => {
     }
   }, [handleLogout]);
 
-  // Refresh Load (Only Updates Assets for Polling)
   const refreshAssets = useCallback(async () => {
-    // No setLoading(true) to avoid UI flicker during polling
     try {
       const data = await getAssets();
       setAssets(data);
@@ -207,7 +214,6 @@ const AdminPage = () => {
         handleLogout();
         return;
       }
-      // Silent fail for polling to avoid spamming toasts
       console.error("Polling error:", err);
     }
   }, [handleLogout]);
@@ -216,26 +222,20 @@ const AdminPage = () => {
     if (isAuthenticated) loadAssets();
   }, [isAuthenticated, loadAssets]);
 
-  // --- POLLING EFFECT (Actualización Constante) ---
+  // --- POLLING EFFECT ---
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    const POLL_INTERVAL = 10000; // 10 segundos
+    const POLL_INTERVAL = 10000;
     let intervalId;
 
     const poll = () => {
-      // No actualizar si hay formularios abiertos para evitar conflictos de edición
       if (showForm || showLotForm) return;
-      // No actualizar si la pestaña no está visible
       if (document.hidden) return;
-      
       refreshAssets();
     };
 
-    // Ejecutar inmediatamente y luego cada intervalo
     poll();
     intervalId = setInterval(poll, POLL_INTERVAL);
-
     return () => clearInterval(intervalId);
   }, [isAuthenticated, showForm, showLotForm, refreshAssets]);
 
@@ -513,12 +513,8 @@ const AdminPage = () => {
     <>
       <div className="fixed top-6 left-12 w-fit z-50 px-6 py-4">
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold tracking-tighter text-gray-200">
-            OTD
-          </span>
-          <span className="text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-            Support
-          </span>
+          <span className="text-2xl font-bold tracking-tighter text-gray-200">OTD</span>
+          <span className="text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Support</span>
         </div>
       </div>
 
@@ -537,11 +533,26 @@ const AdminPage = () => {
             />
           </div>
 
-          {activeTab === 'assets' ? (
+          {/* Vista detallada del item (nueva ruta: /admin/items/:itemName) */}
+          {isItemDetail && currentItemName ? (
+            <ItemDetailPage 
+              assets={assets} 
+              itemName={currentItemName}
+              onBack={() => navigate('/admin')}
+            />
+          ) : activeTab === 'assets' ? (
             <>
-              <AssetStats assets={assets} />
+              <AssetStats 
+                assets={assets} 
+                availableItems={Object.keys(itemPrefixMap)}
+                onItemSelect={(itemName) => {
+                  if (itemName) {
+                    navigate('/admin/statistics', { state: { initialItem: itemName } });
+                  }
+                }}
+              />
               {showFilters && <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} />}
-              {loading && <div className="text-center text-slate-400 py-8">Cargando datos...</div>}
+              {loading && <div className="text-center text-slate-400 py-8">Loading data...</div>}
               {showForm && (
                 <div ref={formContainerRef} className="scroll-mt-32 mb-6">
                   <AssetForm
@@ -569,14 +580,19 @@ const AdminPage = () => {
               />
               <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
             </>
-          ) : (
+          ) : activeTab === 'items' ? (
             <ItemManager
               items={itemPrefixMap}
               onItemCreated={handleItemCreated}              
               onItemUpdated={handleItemUpdated}
               onItemDeleted={handleItemDeleted}             
             /> 
-          )}
+          ) : activeTab === 'statistics' ? (
+            <StatisticsPage 
+              assets={assets}
+              availableItems={Object.keys(itemPrefixMap)}
+            />
+          ) : null}
 
           <ChangePasswordModal 
             isOpen={showChangePasswordModal} 

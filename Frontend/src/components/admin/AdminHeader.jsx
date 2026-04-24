@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, List } from 'lucide-react';
+import { Package, List, BarChart3 } from 'lucide-react';
 
 export const AdminHeader = ({ activeTab, onTabChange }) => {
   return (
@@ -27,6 +27,17 @@ export const AdminHeader = ({ activeTab, onTabChange }) => {
         >
           <List className="w-4 h-4" />
           Items
+        </button>
+        <button
+          onClick={() => onTabChange('statistics')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'statistics'
+              ? 'bg-cyan-500 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Statistics
         </button>
       </div>
     </div>

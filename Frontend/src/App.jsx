@@ -13,6 +13,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AnimatedBackground from './components/AnimatedBackground';
 import LightRays from './components/LightRays';
 import { Toaster } from '@/components/ui/toaster';
+import ItemDetailPage from '@/components/item-detail/ItemDetailPage';
+import StatisticsPage from './components/statistics/StatisticsPage';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -58,6 +60,9 @@ function App() {
           <Route path="/" element={<Navigate to="/admin" replace />} />
           
           <Route path="/admin" element={<AdminPage />} />
+
+          <Route path="/admin/statistics" element={<StatisticsPage />} />
+          
         </Routes>
       </div>
 
