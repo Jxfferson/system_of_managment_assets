@@ -1,7 +1,7 @@
 import React from 'react';
-import { Package, List, BarChart3 } from 'lucide-react';
+import { Package, List, BarChart3, PieChart } from 'lucide-react';
 
-export const AdminHeader = ({ activeTab, onTabChange }) => {
+export const AdminHeader = ({ activeTab, onTabChange, showItemStats = false }) => {
   return (
     <div className="flex flex-col items-start gap-2">
       <h1 className="text-3xl font-bold text-white">Asset Management</h1>
@@ -9,36 +9,39 @@ export const AdminHeader = ({ activeTab, onTabChange }) => {
         <button
           onClick={() => onTabChange('assets')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'assets'
-              ? 'bg-cyan-500 text-white'
-              : 'text-slate-400 hover:text-white'
+            activeTab === 'assets' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
           }`}
         >
-          <Package className="w-4 h-4" />
-          Assets
+          <Package className="w-4 h-4" /> Assets
         </button>
         <button
           onClick={() => onTabChange('items')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'items'
-              ? 'bg-cyan-500 text-white'
-              : 'text-slate-400 hover:text-white'
+            activeTab === 'items' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
           }`}
         >
-          <List className="w-4 h-4" />
-          Items
+          <List className="w-4 h-4" /> Items
         </button>
         <button
           onClick={() => onTabChange('statistics')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'statistics'
-              ? 'bg-cyan-500 text-white'
-              : 'text-slate-400 hover:text-white'
+            activeTab === 'statistics' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
           }`}
         >
-          <BarChart3 className="w-4 h-4" />
-          Statistics
+          <BarChart3 className="w-4 h-4" /> Statistics
         </button>
+        
+        {/* 👉 Nueva pestaña condicional */}
+        {showItemStats && (
+          <button
+            onClick={() => onTabChange('itemStatistics')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'itemStatistics' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <PieChart className="w-4 h-4" /> Item Stats
+          </button>
+        )}
       </div>
     </div>
   );

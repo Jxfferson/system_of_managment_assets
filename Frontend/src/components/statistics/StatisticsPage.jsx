@@ -14,22 +14,18 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // ✅ USEEFECT UNIFICADO Y CORREGIDO
   useEffect(() => {
     if (!isInitialized && availableItems.length > 0) {
       const stateItem = location.state?.initialItem;
       
       if (stateItem) {
-        // ✅ Viene de AssetStats: seleccionar solo ese item
         console.log('📊 Viniendo de AssetStats con:', stateItem);
         setSelectedItems([stateItem]);
       } else {
-        // ✅ Entrada normal: seleccionar todos
         console.log('📊 Entrada normal - todos los items');
         setSelectedItems([...availableItems]);
       }
       
-      // Fechas por defecto (último mes)
       const today = new Date();
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -39,7 +35,6 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
       });
       
       setIsInitialized(true);
-      // Limpiar el state para que no persista al recargar
       window.history.replaceState({}, document.title);
     }
   }, [availableItems, isInitialized, location.state]);
@@ -50,33 +45,15 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
     const isAllSelected = selectedItems.length === 0 || selectedItems.length === availableItems.length;
     
     if (!isAllSelected) {
-      if (selectedItems.length === 1) {
-        const selectedItem = selectedItems[0];
-        filtered = filtered.filter(a => {
-          const name = a.nombre || a.asset_type || a.name || a.item || '';
-          return name === selectedItem;
-        });
-      } else if (selectedItems.length > 1) {
-        filtered = filtered.filter(a => {
-          const name = a.nombre || a.asset_type || a.name || a.item || '';
-          return selectedItems.includes(name);
-        });
-      }
-    }
-    
-    if (isAllSelected && dateRange.start && dateRange.end) {
-      const start = new Date(dateRange.start);
-      const end = new Date(dateRange.end);
-      end.setHours(23, 59, 59, 999);
-      
       filtered = filtered.filter(a => {
-        const entryDate = a.fecha_ingreso ? new Date(a.fecha_ingreso) : null;
-        return !entryDate || (entryDate >= start && entryDate <= end);
+        const name = a.nombre || a.asset_type || a.name || a.item || '';
+        return selectedItems.includes(name);
       });
     }
     
+    
     return filtered;
-  }, [assets, selectedItems, availableItems.length, dateRange]);
+  }, [assets, selectedItems, availableItems.length]);
 
   const stats = useMemo(() => {
     const total = baseAssets.length;
@@ -100,7 +77,7 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
         itemsGrouped[name].available++;
       }
     });
-    
+    // Aca se cambia el contador, en este caso es cuando existan menosde 50 unidades disponibles, se muestra una alerta, y si es menor o igual a 3 se muestra una alerta critica
     Object.entries(itemsGrouped).forEach(([itemName, counts]) => {
       if (counts.available < 50 && counts.available > 0) {
         alerts.push({
@@ -175,14 +152,12 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
     };
 
   } else {
-    // ✅ MODO ALL ITEMS - AGREGACIÓN INTELIGENTE
     if (!dateRange.start || !dateRange.end) return { data: [], config: 'all' };
 
     const start = new Date(dateRange.start);
     const end = new Date(dateRange.end);
     const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     
-    // Determinar el nivel de agregación según el rango de fechas
     let aggregationLevel = 'day';
     if (totalDays > 90) aggregationLevel = 'month';
     else if (totalDays > 30) aggregationLevel = 'week';
@@ -208,17 +183,14 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
       groupedData[key]++;
     });
     
-    // Convertir a array ordenado
     const data = Object.entries(groupedData)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => {
-        // Ordenar cronológicamente
         const dateA = new Date(a.name);
         const dateB = new Date(b.name);
         return dateA - dateB;
       });
     
-    console.log(`📊 Agregación: ${aggregationLevel} (${totalDays} días, ${data.length} puntos)`);
     
     return {  data, config: 'range' };
   }
@@ -264,17 +236,26 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
     };
   }, [selectedItems.length, availableItems.length, viewMode, chartData.data]);
 
-  const toggleItem = (itemName) => {
-    setSelectedItems(prev => 
-      prev.includes(itemName) 
-        ? prev.filter(i => i !== itemName)
-        : [...prev, itemName]
-    );
-  };
+    const toggleItem = (itemName) => {
+    setSelectedItems(prev => {
+        if (prev.includes(itemName)) {
+        if (prev.length === 2) {
+            return prev; 
+        }
+        return prev.filter(i => i !== itemName);
+        }
+        return [...prev, itemName];
+    });
+    };
 
-  const removeItem = (itemName) => {
-    setSelectedItems(prev => prev.filter(i => i !== itemName));
-  };
+    const removeItem = (itemName) => {
+    setSelectedItems(prev => {
+        if (prev.length === 2) {
+        return prev; 
+        }
+        return prev.filter(i => i !== itemName);
+    });
+    };
 
   const toggleAll = () => {
     if (selectedItems.length === availableItems.length) {
@@ -491,7 +472,6 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
         </div>
       </div>
 
-      {/* 🔹 GRÁFICA DE LÍNEA - CAMBIO PRINCIPAL */}
       <div className="p-6 rounded-xl bg-slate-900/40 backdrop-blur-md border border-white/10">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
-import { StatisticsPage } from '@/components/statistics';
 import AdminLogin from '@/components/admin/AdminLogin';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminActions from '@/components/admin/AdminActions';
@@ -9,12 +8,12 @@ import AssetStats from '@/components/admin/AssetStats';
 import AssetFilters from '@/components/admin/AssetFilters';
 import AssetForm from '@/components/admin/AssetForm';
 import AssetTable from '@/components/admin/AssetTable';
-import ExportMenu from '@/components/admin/ExportMenu';
 import AssetLotForm from '@/components/admin/AssetLotForm';
 import ItemManager from '@/components/admin/ItemManager';
 import ChangePasswordModal from '@/components/admin/ChangePasswordModal';
 import ItemDetailPage from '@/components/item-detail/ItemDetailPage';
-
+import StatisticsPage from '@/components/statistics/StatisticsPage';
+import ItemStatisticsPage from '@/components/statistics/ItemStatisticsPage';
 import { verifyPassword } from '@/utils/passwordLocal';
 import { sanitizeString, isSafeInput } from '@/utils/sanitize';
 import { getAssets, createAsset, updateAsset, deleteAsset, createAssetLotBulk } from '@/services/almacenService';
@@ -91,7 +90,6 @@ const AdminPage = () => {
   
   const formContainerRef = useRef(null);
 
-  // Detectar si estamos en la vista de detalle de un item
   const isItemDetail = location.pathname.startsWith('/admin/items/');
   const currentItemName = isItemDetail ? decodeURIComponent(location.pathname.split('/').pop() || '') : null;
 
@@ -135,12 +133,24 @@ const AdminPage = () => {
     localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
   }, [itemPrefixMap]);
 
-  // --- URL SYNC EFFECT (NUEVO - para que funcione desde AssetStats) ---
+  // ✅ URL SYNC EFFECT - Forzar inicio en Assets
   useEffect(() => {
-    if (location.pathname === '/admin/statistics' && activeTab !== 'statistics') {
-      setActiveTab('statistics');
+    // Si estamos en /admin (sin ruta específica), forzar assets
+    if (location.pathname === '/admin') {
+      setActiveTab('assets');
     }
-  }, [location.pathname, activeTab]);
+    // Si estamos explícitamente en /admin/statistics
+    else if (location.pathname === '/admin/statistics') {
+      const urlParams = new URLSearchParams(location.search);
+      const itemFromUrl = urlParams.get('item');
+      
+      if (itemFromUrl) {
+        setActiveTab('itemStatistics');
+      } else {
+        setActiveTab('statistics');
+      }
+    }
+  }, [location.pathname, location.search]);  // 👈 Sin activeTab en dependencias
 
   // --- LOGOUT HANDLER ---
   const handleLogout = useCallback(() => {
@@ -533,7 +543,7 @@ const AdminPage = () => {
             />
           </div>
 
-          {/* Vista detallada del item (nueva ruta: /admin/items/:itemName) */}
+          {/* Vista detallada del item */}
           {isItemDetail && currentItemName ? (
             <ItemDetailPage 
               assets={assets} 
@@ -547,7 +557,8 @@ const AdminPage = () => {
                 availableItems={Object.keys(itemPrefixMap)}
                 onItemSelect={(itemName) => {
                   if (itemName) {
-                    navigate('/admin/statistics', { state: { initialItem: itemName } });
+                    setActiveTab('itemStatistics');
+                    navigate(`/admin/statistics?item=${encodeURIComponent(itemName)}`);
                   }
                 }}
               />
@@ -589,7 +600,12 @@ const AdminPage = () => {
             /> 
           ) : activeTab === 'statistics' ? (
             <StatisticsPage 
-              assets={assets}
+              assets={assets} 
+              availableItems={Object.keys(itemPrefixMap)}
+            />
+          ) : activeTab === 'itemStatistics' ? (
+            <ItemStatisticsPage 
+              assets={assets} 
               availableItems={Object.keys(itemPrefixMap)}
             />
           ) : null}

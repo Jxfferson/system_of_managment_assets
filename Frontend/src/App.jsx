@@ -9,12 +9,10 @@ import { AnimatePresence } from 'framer-motion';
 import ScrollToTop from './components/ScrollToTop';
 import AdminPage from './pages/AdminPage';
 import SplashScreen from './components/SplashScreen'; 
-import ProtectedRoute from './components/ProtectedRoute';
 import AnimatedBackground from './components/AnimatedBackground';
 import LightRays from './components/LightRays';
 import { Toaster } from '@/components/ui/toaster';
 import ItemDetailPage from '@/components/item-detail/ItemDetailPage';
-import StatisticsPage from './components/statistics/StatisticsPage';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -58,11 +56,11 @@ function App() {
       <div className="min-h-screen text-slate-200 relative z-20">
         <Routes>
           <Route path="/" element={<Navigate to="/admin" replace />} />
-          
           <Route path="/admin" element={<AdminPage />} />
-
-          <Route path="/admin/statistics" element={<StatisticsPage />} />
           
+          <Route path="/admin/statistics" element={<AdminPage />} />
+          
+          <Route path="/admin/items/:itemName" element={<ItemDetailPage />} />
         </Routes>
       </div>
 

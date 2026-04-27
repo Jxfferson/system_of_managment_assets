@@ -50,12 +50,11 @@ const AssetStats = ({ assets = [], availableItems = [] }) => {
     }).sort((a, b) => b.total - a.total);
   }, [assets, availableItems]);
 
-  const handleItemSelect = (itemName) => {
-    if (itemName) {
-      // Redirigir a Statistics con el item seleccionado
-      navigate('/admin/statistics', { state: { initialItem: itemName } });
-    }
-  };
+const handleItemSelect = (itemName) => {
+  if (itemName) {
+    navigate(`/admin/statistics?item=${encodeURIComponent(itemName)}`);
+  }
+};
 
   return (
     <div className="space-y-6">
