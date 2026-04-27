@@ -6,10 +6,9 @@ export const ReturnTypeChart = ({ stats }) => {
     { name: 'Return', value: stats.returns },
     { name: 'Missing', value: stats.missing },
     { name: 'Damage', value: stats.damage }
-  ].filter(item => item.value > 0); // Solo mostrar categorías con datos
+  ].filter(item => item.value > 0);
 
-  // Paleta mejorada: más suave y profesional
-  const COLORS = ['#94a3b8', '#f43f5e', '#38bdf8']; // slate-400, rose-500, sky-400
+  const COLORS = ['#94a3b8', '#f43f5e', '#38bdf8']; 
 
   return (
     <div className="p-6 rounded-xl bg-slate-900/30 border border-white/10">

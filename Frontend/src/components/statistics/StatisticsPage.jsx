@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Box, CheckCircle2, ArrowUpRight, BarChart3, Table2, Clock, ChevronDown, X, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, Box, CheckCircle2, ArrowUpRight, BarChart3, Table2, Clock, ChevronDown, X, AlertCircle, AlertTriangle, Package } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
@@ -19,10 +19,8 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
       const stateItem = location.state?.initialItem;
       
       if (stateItem) {
-        console.log('📊 Viniendo de AssetStats con:', stateItem);
         setSelectedItems([stateItem]);
       } else {
-        console.log('📊 Entrada normal - todos los items');
         setSelectedItems([...availableItems]);
       }
       
@@ -51,7 +49,6 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
       });
     }
     
-    
     return filtered;
   }, [assets, selectedItems, availableItems.length]);
 
@@ -62,139 +59,156 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
     return { total, available, assigned };
   }, [baseAssets]);
 
-  const lowStockAlerts = useMemo(() => {
-    const isAllSelected = selectedItems.length === 0 || selectedItems.length === availableItems.length;
-    const alerts = [];
+  const itemsAvailability = useMemo(() => {
+    const itemsToShow = selectedItems.length > 0 && selectedItems.length < availableItems.length 
+      ? selectedItems 
+      : availableItems;
     
-    const itemsGrouped = {};
-    baseAssets.forEach(asset => {
-      const name = asset.nombre || asset.asset_type || asset.name || asset.item || '';
-      if (!itemsGrouped[name]) {
-        itemsGrouped[name] = { total: 0, available: 0 };
-      }
-      itemsGrouped[name].total++;
-      if (!asset.fecha_salida || asset.fecha_salida.trim() === '') {
-        itemsGrouped[name].available++;
-      }
-    });
-    // Aca se cambia el contador, en este caso es cuando existan menosde 50 unidades disponibles, se muestra una alerta, y si es menor o igual a 3 se muestra una alerta critica
-    Object.entries(itemsGrouped).forEach(([itemName, counts]) => {
-      if (counts.available < 50 && counts.available > 0) {
-        alerts.push({
-          item: itemName,
-          available: counts.available,
-          total: counts.total,
-          severity: counts.available <= 3 ? 'critical' : 'warning'
-        });
-      }
-    });
-    
-    return alerts.sort((a, b) => a.available - b.available);
-  }, [baseAssets, selectedItems, availableItems.length]);
+    return itemsToShow.map(itemName => {
+      const itemAssets = baseAssets.filter(a => {
+        const name = a.nombre || a.asset_type || a.name || a.item || '';
+        return name === itemName;
+      });
+      const total = itemAssets.length;
+      const available = itemAssets.filter(a => !a.fecha_salida || a.fecha_salida.trim() === '').length;
+      const percentage = total > 0 ? Math.round((available / total) * 100) : 0;
+      
+      return { name: itemName, total, available, percentage };
+    }).filter(item => item.total > 0);
+  }, [baseAssets, selectedItems, availableItems]);
+
+const lowStockAlerts = useMemo(() => {
+  const alerts = [];
+  const itemsGrouped = {};
+  
+  baseAssets.forEach(asset => {
+    const name = asset.nombre || asset.asset_type || asset.name || asset.item || '';
+    if (!itemsGrouped[name]) {
+      itemsGrouped[name] = { total: 0, available: 0 };
+    }
+    itemsGrouped[name].total++;
+    if (!asset.fecha_salida || asset.fecha_salida.trim() === '') {
+      itemsGrouped[name].available++;
+    }
+  });
+  
+  // Numero para pedir nuevos, en este caso es 15 pero este debe ser CAMBIADO segun lo que definan
+  Object.entries(itemsGrouped).forEach(([itemName, counts]) => {
+    if (counts.available < 15 && counts.available >= 0 && counts.total > 0) {
+      alerts.push({
+        item: itemName,
+        available: counts.available,
+        total: counts.total,
+        severity: counts.available <= 3 ? 'critical' : 'warning'
+      });
+    }
+  });
+  
+  return alerts.sort((a, b) => a.available - b.available);
+}, [baseAssets]); 
 
   const chartData = useMemo(() => {
-  const relevantAssets = baseAssets.filter(a => a.fecha_salida && a.fecha_salida.trim() !== '');
-  
-  const isAllSelected = selectedItems.length === 0 || selectedItems.length === availableItems.length;
-  const isSingleItem = selectedItems.length === 1;
-  
-  if (isSingleItem) {
-    const now = new Date();
-    const selectedItem = selectedItems[0];
-    const itemAssets = relevantAssets.filter(a => {
-      const name = a.nombre || a.asset_type || a.name || a.item || '';
-      return name === selectedItem;
-    });
+    const relevantAssets = baseAssets.filter(a => a.fecha_salida && a.fecha_salida.trim() !== '');
     
-    let groups = [];
-    if (viewMode === 'day') {
-      const todayStr = now.toISOString().split('T')[0];
-      groups = [{ time: todayStr, count: 0 }];
-    } else if (viewMode === 'week') {
-      for (let i = 3; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - (i * 7));
-        const weekKey = `W${i === 0 ? 'Current' : i}`;
-        groups.push({ time: weekKey, count: 0, label: `Week -${i}` });
-      }
-    } else if (viewMode === 'month') {
-      for (let i = 2; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthKey = d.toLocaleString('en-US', { month: 'short' });
-        groups.push({ time: monthKey, count: 0, label: monthKey });
-      }
-    }
-
-    itemAssets.forEach(a => {
-      const exitDate = new Date(a.fecha_salida);
+    const isAllSelected = selectedItems.length === 0 || selectedItems.length === availableItems.length;
+    const isSingleItem = selectedItems.length === 1;
+    
+    if (isSingleItem) {
+      const now = new Date();
+      const selectedItem = selectedItems[0];
+      const itemAssets = relevantAssets.filter(a => {
+        const name = a.nombre || a.asset_type || a.name || a.item || '';
+        return name === selectedItem;
+      });
+      
+      let groups = [];
       if (viewMode === 'day') {
         const todayStr = now.toISOString().split('T')[0];
-        if (a.fecha_salida.startsWith(todayStr)) groups[0].count++;
+        groups = [{ time: todayStr, count: 0 }];
       } else if (viewMode === 'week') {
-        const diffTime = Math.abs(now - exitDate);
-        const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
-        if (diffWeeks < 4) {
-          const idx = 3 - diffWeeks;
-          if (groups[idx]) groups[idx].count++;
+        for (let i = 3; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(d.getDate() - (i * 7));
+          const weekKey = `W${i === 0 ? 'Current' : i}`;
+          groups.push({ time: weekKey, count: 0, label: `Week -${i}` });
         }
       } else if (viewMode === 'month') {
-        const diffMonths = (now.getFullYear() - exitDate.getFullYear()) * 12 + (now.getMonth() - exitDate.getMonth());
-        if (diffMonths < 3) {
-          const idx = 2 - diffMonths;
-          if (groups[idx]) groups[idx].count++;
+        for (let i = 2; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthKey = d.toLocaleString('en-US', { month: 'short' });
+          groups.push({ time: monthKey, count: 0, label: monthKey });
         }
       }
-    });
 
-    return { 
-       data: groups.map(g => ({ name: g.label || g.time, value: g.count })),
-      config: viewMode 
-    };
-
-  } else {
-    if (!dateRange.start || !dateRange.end) return { data: [], config: 'all' };
-
-    const start = new Date(dateRange.start);
-    const end = new Date(dateRange.end);
-    const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    
-    let aggregationLevel = 'day';
-    if (totalDays > 90) aggregationLevel = 'month';
-    else if (totalDays > 30) aggregationLevel = 'week';
-    
-    const groupedData = {};
-    
-    relevantAssets.forEach(a => {
-      const exitDate = new Date(a.fecha_salida);
-      let key = '';
-      
-      if (aggregationLevel === 'day') {
-        key = exitDate.toISOString().split('T')[0];
-      } else if (aggregationLevel === 'week') {
-        const weekNum = Math.floor((exitDate - start) / (1000 * 60 * 60 * 24 * 7));
-        key = `Week ${weekNum + 1}`;
-      } else if (aggregationLevel === 'month') {
-        key = exitDate.toLocaleString('en-US', { month: 'short', year: '2-digit' });
-      }
-      
-      if (!groupedData[key]) {
-        groupedData[key] = 0;
-      }
-      groupedData[key]++;
-    });
-    
-    const data = Object.entries(groupedData)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => {
-        const dateA = new Date(a.name);
-        const dateB = new Date(b.name);
-        return dateA - dateB;
+      itemAssets.forEach(a => {
+        const exitDate = new Date(a.fecha_salida);
+        if (viewMode === 'day') {
+          const todayStr = now.toISOString().split('T')[0];
+          if (a.fecha_salida.startsWith(todayStr)) groups[0].count++;
+        } else if (viewMode === 'week') {
+          const diffTime = Math.abs(now - exitDate);
+          const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+          if (diffWeeks < 4) {
+            const idx = 3 - diffWeeks;
+            if (groups[idx]) groups[idx].count++;
+          }
+        } else if (viewMode === 'month') {
+          const diffMonths = (now.getFullYear() - exitDate.getFullYear()) * 12 + (now.getMonth() - exitDate.getMonth());
+          if (diffMonths < 3) {
+            const idx = 2 - diffMonths;
+            if (groups[idx]) groups[idx].count++;
+          }
+        }
       });
-    
-    
-    return {  data, config: 'range' };
-  }
-}, [baseAssets, selectedItems, availableItems.length, viewMode, dateRange]);
+
+      return { 
+         data: groups.map(g => ({ name: g.label || g.time, value: g.count })),
+        config: viewMode 
+      };
+
+    } else {
+      if (!dateRange.start || !dateRange.end) return { data: [], config: 'all' };
+
+      const start = new Date(dateRange.start);
+      const end = new Date(dateRange.end);
+      const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      
+      let aggregationLevel = 'day';
+      if (totalDays > 90) aggregationLevel = 'month';
+      else if (totalDays > 30) aggregationLevel = 'week';
+      
+      const groupedData = {};
+      
+      relevantAssets.forEach(a => {
+        const exitDate = new Date(a.fecha_salida);
+        let key = '';
+        
+        if (aggregationLevel === 'day') {
+          key = exitDate.toISOString().split('T')[0];
+        } else if (aggregationLevel === 'week') {
+          const weekNum = Math.floor((exitDate - start) / (1000 * 60 * 60 * 24 * 7));
+          key = `Week ${weekNum + 1}`;
+        } else if (aggregationLevel === 'month') {
+          key = exitDate.toLocaleString('en-US', { month: 'short', year: '2-digit' });
+        }
+        
+        if (!groupedData[key]) {
+          groupedData[key] = 0;
+        }
+        groupedData[key]++;
+      });
+      
+      const data = Object.entries(groupedData)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => {
+          const dateA = new Date(a.name);
+          const dateB = new Date(b.name);
+          return dateA - dateB;
+        });
+      
+      return {  data, config: 'range' };
+    }
+  }, [baseAssets, selectedItems, availableItems.length, viewMode, dateRange]);
 
   const calculateYAxisTicks = (maxValue, step) => {
     const roundedMax = Math.ceil(maxValue / step) * step;
@@ -236,26 +250,26 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
     };
   }, [selectedItems.length, availableItems.length, viewMode, chartData.data]);
 
-    const toggleItem = (itemName) => {
+  const toggleItem = (itemName) => {
     setSelectedItems(prev => {
-        if (prev.includes(itemName)) {
+      if (prev.includes(itemName)) {
         if (prev.length === 2) {
-            return prev; 
+          return prev; 
         }
         return prev.filter(i => i !== itemName);
-        }
-        return [...prev, itemName];
+      }
+      return [...prev, itemName];
     });
-    };
+  };
 
-    const removeItem = (itemName) => {
+  const removeItem = (itemName) => {
     setSelectedItems(prev => {
-        if (prev.length === 2) {
+      if (prev.length === 2) {
         return prev; 
-        }
-        return prev.filter(i => i !== itemName);
+      }
+      return prev.filter(i => i !== itemName);
     });
-    };
+  };
 
   const toggleAll = () => {
     if (selectedItems.length === availableItems.length) {
@@ -324,6 +338,72 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
         </div>
       )}
 
+
+
+        {itemsAvailability.length > 0 && (
+        <div className="p-4 rounded-xl bg-slate-900/30 border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-cyan-400" />
+                <span className="text-slate-300 text-sm font-medium">Item Availability</span>
+            </div>
+            <span className="text-slate-500 text-xs">{itemsAvailability.length} items</span>
+            </div>
+            
+            <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+                <thead>
+                <tr className="border-b border-white/5 text-slate-500">
+                    <th className="pb-2 font-medium">Item</th>
+                    <th className="pb-2 font-medium text-right">Available</th>
+                    <th className="pb-2 font-medium text-right">Total</th>
+                    <th className="pb-2 font-medium text-right">%</th>
+                    <th className="pb-2 font-medium">Status</th>
+                </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                {itemsAvailability.slice(0, 5).map((item, idx) => (
+                    <tr key={idx} className="hover:bg-white/5 transition-colors">
+                    <td className="py-2 text-slate-300 truncate max-w-[150px]" title={item.name}>
+                        {item.name.length > 25 ? item.name.substring(0, 25) + '...' : item.name}
+                    </td>
+                    <td className="py-2 text-emerald-400 text-right font-medium">{item.available}</td>
+                    <td className="py-2 text-slate-400 text-right">{item.total}</td>
+                    <td className="py-2 text-right">
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                        item.percentage >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                        item.percentage >= 50 ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-rose-500/20 text-rose-400'
+                        }`}>
+                        {item.percentage}%
+                        </span>
+                    </td>
+                    <td className="py-2">
+                        <div className="w-16 bg-slate-700/50 rounded-full h-1">
+                        <div 
+                            className={`h-1 rounded-full ${
+                            item.percentage >= 80 ? 'bg-emerald-500' :
+                            item.percentage >= 50 ? 'bg-amber-500' :
+                            'bg-rose-500'
+                            }`}
+                            style={{ width: `${item.percentage}%` }}
+                        />
+                        </div>
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+            </div>
+            {itemsAvailability.length > 5 && (
+            <p className="text-center text-slate-500 text-xs mt-3">
+                +{itemsAvailability.length - 5} more items
+            </p>
+            )}
+        </div>
+        )}
+
+        
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-xl bg-slate-900/40 backdrop-blur-md border border-white/10 flex items-center justify-between group hover:border-white/20 transition-all">
           <div>

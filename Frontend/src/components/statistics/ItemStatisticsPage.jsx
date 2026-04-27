@@ -14,7 +14,6 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // ✅ Inicializar: leer item de URL
   useEffect(() => {
     if (!isInitialized) {
       const params = new URLSearchParams(location.search);
@@ -26,7 +25,6 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
         setSelectedItem(availableItems[0]);
       }
 
-      // Fechas por defecto (último mes) - para la gráfica
       const today = new Date();
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -39,7 +37,6 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
     }
   }, [location.search, availableItems, isInitialized]);
 
-  // ✅ Filtrar assets SOLO por nombre del item (SIN filtro de fechas)
   const itemAssets = useMemo(() => {
     if (!selectedItem) return [];
     
@@ -47,9 +44,8 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
       const name = a.nombre || a.asset_type || a.name || a.item || '';
       return name === selectedItem;
     });
-  }, [assets, selectedItem]);  // 👈 Quitamos dateRange de las dependencias
+  }, [assets, selectedItem]); 
 
-  // ✅ Stats del item
   const stats = useMemo(() => {
     const total = itemAssets.length;
     const available = itemAssets.filter(a => !a.fecha_salida || a.fecha_salida.trim() === '').length;
@@ -57,24 +53,22 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
     return { total, available, assigned };
   }, [itemAssets]);
 
-  // ✅ Alerta de stock bajo
-  const lowStockAlert = useMemo(() => {
+    const lowStockAlert = useMemo(() => {
     if (!selectedItem || itemAssets.length === 0) return null;
     
     const available = itemAssets.filter(a => !a.fecha_salida || a.fecha_salida.trim() === '').length;
     
-    if (available < 50 && available > 0) {
-      return {
+    if (available < 15 && available >= 0 && itemAssets.length > 0) {
+        return {
         item: selectedItem,
         available,
         total: itemAssets.length,
         severity: available <= 3 ? 'critical' : 'warning'
-      };
+        };
     }
     return null;
-  }, [itemAssets, selectedItem]);
+    }, [itemAssets, selectedItem]);
 
-  // ✅ Datos para la gráfica
   const chartData = useMemo(() => {
     if (!selectedItem) return {  data: [], config: viewMode };
     
@@ -161,15 +155,16 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
   return (
     <div className="space-y-6 pt-4 pb-6">
       
-      {/* 🔹 Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate('/admin/')} 
+            <button 
+            onClick={() => {
+                navigate('/admin', { replace: true });
+            }} 
             className="p-2 rounded-lg bg-slate-800/50 border border-white/10 text-slate-400 hover:text-white transition-all"
-          >
+            >
             ←
-          </button>
+            </button>
           <div>
             <h2 className="text-2xl font-bold text-white">Item Statistics</h2>
             <p className="text-slate-400 text-sm">Detailed analytics for: <span className="text-cyan-400">{selectedItem}</span></p>
@@ -181,7 +176,6 @@ const ItemStatisticsPage = ({ assets = [], availableItems = [] }) => {
         </div>
       </div>
 
-      {/* 🔹 Alerta de stock bajo */}
       {lowStockAlert && (
         <div className="p-6 rounded-xl bg-gradient-to-br from-rose-950/40 to-orange-950/40 backdrop-blur-md border border-rose-500/30">
           <div className="flex items-center gap-3 mb-4">
