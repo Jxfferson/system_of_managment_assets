@@ -5,6 +5,83 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 
+// 🔹 NUEVO: Modal de Orden de Compra (agregado al inicio)
+const OrderModal = ({ isOpen, onClose, item, onConfirm }) => {
+  const [quantity, setQuantity] = useState(1);
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+
+  const getSuggestedPrice = (itemName) => {
+    const name = itemName.toLowerCase();
+    if (name.includes('teclado') || name.includes('keyboard')) return 14000;
+    if (name.includes('mouse') || name.includes('ratón')) return 8500;
+    if (name.includes('cable') && name.includes('display')) return 4500;
+    if (name.includes('cable') && name.includes('vga')) return 3500;
+    if (name.includes('cable') && name.includes('hdmi')) return 5500;
+    if (name.includes('extension') || name.includes('extensión')) return 6000;
+    if (name.includes('ethernet') || name.includes('lan') || name.includes('usb')) return 7500;
+    if (name.includes('monitor') || name.includes('pantalla')) return 450000;
+    if (name.includes('laptop') || name.includes('portátil')) return 2500000;
+    return 10000;
+  };
+
+  useEffect(() => {
+    if (item) {
+      setUnitPrice(getSuggestedPrice(item));
+      setQuantity(1);
+    }
+  }, [item]);
+
+  const total = quantity * unitPrice;
+  if (!isOpen || !item) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <h3 className="text-lg font-semibold text-white">Create Purchase Order</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-slate-500 text-xs mb-1 uppercase tracking-wider">Item</label>
+            <p className="text-white font-medium">{item}</p>
+          </div>
+          <div>
+            <label className="block text-slate-500 text-xs mb-1 uppercase tracking-wider">Quantity to Order</label>
+            <input type="number" min="1" max="999" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all" />
+          </div>
+          <div>
+            <label className="block text-slate-500 text-xs mb-1 uppercase tracking-wider flex items-center justify-between">
+              <span>Unit Price (COP)</span>
+              <button onClick={() => setIsEditingPrice(!isEditingPrice)} className="text-cyan-400 text-[10px] hover:text-cyan-300 transition-colors">{isEditingPrice ? '✓ Done' : '✎ Edit'}</button>
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+              <input type="number" min="0" value={unitPrice} onChange={(e) => setUnitPrice(Math.max(0, parseInt(e.target.value) || 0))} disabled={!isEditingPrice} className={`w-full bg-slate-800 border border-white/10 rounded-lg pl-8 pr-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all ${!isEditingPrice ? 'opacity-70 cursor-not-allowed' : ''}`} />
+            </div>
+            {!isEditingPrice && <p className="text-slate-600 text-[10px] mt-1">💡 Suggested price based on item type</p>}
+          </div>
+          <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/20">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Total Order Value</span>
+              <span className="text-2xl font-bold text-cyan-400">${total.toLocaleString('es-CO')}</span>
+            </div>
+            <p className="text-slate-500 text-[10px] mt-1">{quantity} unit{quantity > 1 ? 's' : ''} × ${unitPrice.toLocaleString('es-CO')}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-white/10">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">Cancel</button>
+          <button onClick={() => { onConfirm({ item, quantity, unitPrice, total }); onClose(); }} className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg hover:from-cyan-400 hover:to-blue-400 transition-all shadow-lg shadow-cyan-500/20">Confirm Order</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StatisticsPage = ({ assets = [], availableItems = [] }) => {
   const location = useLocation();
   
@@ -13,6 +90,10 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showDropdown, setShowDropdown] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // ✅ NUEVO: Estados para la modal de orden
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderItem, setOrderItem] = useState(null);
 
   useEffect(() => {
     if (!isInitialized && availableItems.length > 0) {
@@ -77,35 +158,34 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
     }).filter(item => item.total > 0);
   }, [baseAssets, selectedItems, availableItems]);
 
-const lowStockAlerts = useMemo(() => {
-  const alerts = [];
-  const itemsGrouped = {};
-  
-  baseAssets.forEach(asset => {
-    const name = asset.nombre || asset.asset_type || asset.name || asset.item || '';
-    if (!itemsGrouped[name]) {
-      itemsGrouped[name] = { total: 0, available: 0 };
-    }
-    itemsGrouped[name].total++;
-    if (!asset.fecha_salida || asset.fecha_salida.trim() === '') {
-      itemsGrouped[name].available++;
-    }
-  });
-  
-  // Numero para pedir nuevos, en este caso es 15 pero este debe ser CAMBIADO segun lo que definan
-  Object.entries(itemsGrouped).forEach(([itemName, counts]) => {
-    if (counts.available < 15 && counts.available >= 0 && counts.total > 0) {
-      alerts.push({
-        item: itemName,
-        available: counts.available,
-        total: counts.total,
-        severity: counts.available <= 3 ? 'critical' : 'warning'
-      });
-    }
-  });
-  
-  return alerts.sort((a, b) => a.available - b.available);
-}, [baseAssets]); 
+  const lowStockAlerts = useMemo(() => {
+    const alerts = [];
+    const itemsGrouped = {};
+    
+    baseAssets.forEach(asset => {
+      const name = asset.nombre || asset.asset_type || asset.name || asset.item || '';
+      if (!itemsGrouped[name]) {
+        itemsGrouped[name] = { total: 0, available: 0 };
+      }
+      itemsGrouped[name].total++;
+      if (!asset.fecha_salida || asset.fecha_salida.trim() === '') {
+        itemsGrouped[name].available++;
+      }
+    });
+    
+    Object.entries(itemsGrouped).forEach(([itemName, counts]) => {
+      if (counts.available < 15 && counts.available >= 0 && counts.total > 0) {
+        alerts.push({
+          item: itemName,
+          available: counts.available,
+          total: counts.total,
+          severity: counts.available <= 3 ? 'critical' : 'warning'
+        });
+      }
+    });
+    
+    return alerts.sort((a, b) => a.available - b.available);
+  }, [baseAssets]); 
 
   const chartData = useMemo(() => {
     const relevantAssets = baseAssets.filter(a => a.fecha_salida && a.fecha_salida.trim() !== '');
@@ -281,6 +361,17 @@ const lowStockAlerts = useMemo(() => {
 
   const isAllSelected = selectedItems.length === 0 || selectedItems.length === availableItems.length;
 
+  // ✅ NUEVO: Funciones para la modal de orden
+  const handleOpenOrderModal = (itemName) => {
+    setOrderItem(itemName);
+    setShowOrderModal(true);
+  };
+
+  const handleConfirmOrder = (orderData) => {
+    console.log('📦 Order confirmed:', orderData);
+    // Aquí puedes agregar: API call, toast, localStorage, etc.
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
@@ -325,11 +416,15 @@ const lowStockAlerts = useMemo(() => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-semibold ${
-                    alert.severity === 'critical' ? 'text-rose-400' : 'text-orange-400'
-                  }`}>
+                  {/* ✅ CAMBIADO: <p> por <button> para abrir la modal */}
+                  <button 
+                    onClick={() => handleOpenOrderModal(alert.item)}
+                    className={`text-sm font-semibold hover:underline ${
+                      alert.severity === 'critical' ? 'text-rose-400' : 'text-orange-400'
+                    }`}
+                  >
                     {alert.available <= 3 ? 'Order Now!' : 'Reorder Soon'}
-                  </p>
+                  </button>
                   <p className="text-slate-500 text-xs">Low stock</p>
                 </div>
               </div>
@@ -338,72 +433,69 @@ const lowStockAlerts = useMemo(() => {
         </div>
       )}
 
-
-
-        {itemsAvailability.length > 0 && (
+      {itemsAvailability.length > 0 && (
         <div className="p-4 rounded-xl bg-slate-900/30 border border-white/5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-cyan-400" />
-                <span className="text-slate-300 text-sm font-medium">Item Availability</span>
+              <Package className="w-4 h-4 text-cyan-400" />
+              <span className="text-slate-300 text-sm font-medium">Item Availability</span>
             </div>
             <span className="text-slate-500 text-xs">{itemsAvailability.length} items</span>
-            </div>
-            
-            <div className="overflow-x-auto">
+          </div>
+          
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-                <thead>
+              <thead>
                 <tr className="border-b border-white/5 text-slate-500">
-                    <th className="pb-2 font-medium">Item</th>
-                    <th className="pb-2 font-medium text-right">Available</th>
-                    <th className="pb-2 font-medium text-right">Total</th>
-                    <th className="pb-2 font-medium text-right">%</th>
-                    <th className="pb-2 font-medium">Status</th>
+                  <th className="pb-2 font-medium">Item</th>
+                  <th className="pb-2 font-medium text-right">Available</th>
+                  <th className="pb-2 font-medium text-right">Total</th>
+                  <th className="pb-2 font-medium text-right">%</th>
+                  <th className="pb-2 font-medium">Status</th>
                 </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
+              </thead>
+              <tbody className="divide-y divide-white/5">
                 {itemsAvailability.slice(0, 5).map((item, idx) => (
-                    <tr key={idx} className="hover:bg-white/5 transition-colors">
+                  <tr key={idx} className="hover:bg-white/5 transition-colors">
                     <td className="py-2 text-slate-300 truncate max-w-[150px]" title={item.name}>
-                        {item.name.length > 25 ? item.name.substring(0, 25) + '...' : item.name}
+                      {item.name.length > 25 ? item.name.substring(0, 25) + '...' : item.name}
                     </td>
                     <td className="py-2 text-emerald-400 text-right font-medium">{item.available}</td>
                     <td className="py-2 text-slate-400 text-right">{item.total}</td>
                     <td className="py-2 text-right">
-                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                         item.percentage >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
                         item.percentage >= 50 ? 'bg-amber-500/20 text-amber-400' :
                         'bg-rose-500/20 text-rose-400'
-                        }`}>
+                      }`}>
                         {item.percentage}%
-                        </span>
+                      </span>
                     </td>
                     <td className="py-2">
-                        <div className="w-16 bg-slate-700/50 rounded-full h-1">
+                      <div className="w-16 bg-slate-700/50 rounded-full h-1">
                         <div 
-                            className={`h-1 rounded-full ${
+                          className={`h-1 rounded-full ${
                             item.percentage >= 80 ? 'bg-emerald-500' :
                             item.percentage >= 50 ? 'bg-amber-500' :
                             'bg-rose-500'
-                            }`}
-                            style={{ width: `${item.percentage}%` }}
+                          }`}
+                          style={{ width: `${item.percentage}%` }}
                         />
-                        </div>
+                      </div>
                     </td>
-                    </tr>
+                  </tr>
                 ))}
-                </tbody>
+              </tbody>
             </table>
-            </div>
-            {itemsAvailability.length > 5 && (
+          </div>
+          {itemsAvailability.length > 5 && (
             <p className="text-center text-slate-500 text-xs mt-3">
-                +{itemsAvailability.length - 5} more items
+              +{itemsAvailability.length - 5} more items
             </p>
-            )}
+          )}
         </div>
-        )}
+      )}
 
-        
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-xl bg-slate-900/40 backdrop-blur-md border border-white/10 flex items-center justify-between group hover:border-white/20 transition-all">
           <div>
@@ -658,6 +750,14 @@ const lowStockAlerts = useMemo(() => {
           </table>
         </div>
       </div>
+
+      {/* ✅ NUEVO: Modal de Orden de Compra (agregado al final del return) */}
+      <OrderModal 
+        isOpen={showOrderModal} 
+        onClose={() => setShowOrderModal(false)} 
+        item={orderItem} 
+        onConfirm={handleConfirmOrder} 
+      />
     </div>
   );
 };
