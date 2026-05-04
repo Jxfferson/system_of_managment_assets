@@ -1,81 +1,293 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Box, CheckCircle2, ArrowUpRight, BarChart3, Table2, Clock, ChevronDown, X, AlertCircle, AlertTriangle, Package } from 'lucide-react';
+import { Calendar, Box, CheckCircle2, ArrowUpRight, BarChart3, Table2, Clock, ChevronDown, X, AlertCircle, AlertTriangle, Package, Trash2, Download, Plus } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
+import * as XLSX from 'xlsx';
 
-// 🔹 NUEVO: Modal de Orden de Compra (agregado al inicio)
-const OrderModal = ({ isOpen, onClose, item, onConfirm }) => {
-  const [quantity, setQuantity] = useState(1);
-  const [unitPrice, setUnitPrice] = useState(0);
-  const [isEditingPrice, setIsEditingPrice] = useState(false);
+// 🔹 NUEVO: Precios de productos
+const PRODUCT_PRICES = {
+  'Extensión de Cable eléctrico': 8000,
+  'Conversores Displayport a VGA Hembra': 13500,
+  'Cable LAN-RJ45 1,8 Metros': 10169,
+  'Cable Display VGA a VGA 1,8': 13500,
+  'Cable HDMI a HDMI 1,8 Metros': 14200,
+  'Cable VGA a HDMI 1,8 Metros': 15000,
+  'Cable Display Port a HDMI 1,8': 14538,
+  'Cable Display Port a VGA 1,8': 16082,
+  'Ethernet 3,0 LAN a USB': 29500,
+  'Mouse': 21000,
+  'Teclado': 49700
+};
 
-  const getSuggestedPrice = (itemName) => {
-    const name = itemName.toLowerCase();
-    if (name.includes('teclado') || name.includes('keyboard')) return 14000;
-    if (name.includes('mouse') || name.includes('ratón')) return 8500;
-    if (name.includes('cable') && name.includes('display')) return 4500;
-    if (name.includes('cable') && name.includes('vga')) return 3500;
-    if (name.includes('cable') && name.includes('hdmi')) return 5500;
-    if (name.includes('extension') || name.includes('extensión')) return 6000;
-    if (name.includes('ethernet') || name.includes('lan') || name.includes('usb')) return 7500;
-    if (name.includes('monitor') || name.includes('pantalla')) return 450000;
-    if (name.includes('laptop') || name.includes('portátil')) return 2500000;
-    return 10000;
-  };
+const getSuggestedPrice = (itemName) => {
+  // Buscar coincidencia parcial en el nombre
+  for (const [key, price] of Object.entries(PRODUCT_PRICES)) {
+    if (itemName.toLowerCase().includes(key.toLowerCase())) {
+      return price;
+    }
+  }
+  return 10000; // Precio por defecto
+};
+
+// 🔹 NUEVO: Modal de Orden de Compra con Tabla
+const OrderModal = ({ isOpen, onClose, lowStockItems, allItems }) => {
+  const [orderItems, setOrderItems] = useState([]);
+  const [showItemSelector, setShowItemSelector] = useState(false);
 
   useEffect(() => {
-    if (item) {
-      setUnitPrice(getSuggestedPrice(item));
-      setQuantity(1);
+    if (isOpen && lowStockItems) {
+      // Inicializar con items de bajo stock
+      const initialItems = lowStockItems.map(alert => ({
+        name: alert.item,
+        total: alert.total,
+        available: alert.available,
+        unitPrice: getSuggestedPrice(alert.item),
+        quantity: Math.max(10, alert.total - alert.available), 
+        // Se sugiere cantidad Pero si se quire iniciar desde 0 SIEMPRE se debe eliminar el valor despues de quantity y dejarlo asi quantity: 0;
+      }));
+      setOrderItems(initialItems);
     }
-  }, [item]);
+  }, [isOpen, lowStockItems]);
 
-  const total = quantity * unitPrice;
-  if (!isOpen || !item) return null;
+  const addItem = (itemName) => {
+    if (orderItems.find(item => item.name === itemName)) return;
+    
+    const newItem = {
+      name: itemName,
+      total: 0,
+      available: 0,
+      unitPrice: getSuggestedPrice(itemName),
+      quantity: 10,
+    };
+    setOrderItems([...orderItems, newItem]);
+    setShowItemSelector(false);
+  };
+
+  const removeItem = (itemName) => {
+    setOrderItems(orderItems.filter(item => item.name !== itemName));
+  };
+
+  const updateQuantity = (itemName, quantity) => {
+    setOrderItems(orderItems.map(item => 
+      item.name === itemName ? { ...item, quantity: Math.max(1, quantity) } : item
+    ));
+  };
+
+  const updateUnitPrice = (itemName, unitPrice) => {
+    setOrderItems(orderItems.map(item => 
+      item.name === itemName ? { ...item, unitPrice: Math.max(0, unitPrice) } : item
+    ));
+  };
+
+  const calculateItemTotal = (item) => {
+    return item.quantity * item.unitPrice;
+  };
+
+  const calculateGrandTotal = () => {
+    return orderItems.reduce((total, item) => total + calculateItemTotal(item), 0);
+  };
+
+  const exportToExcel = () => {
+    const exportData = orderItems.map((item, index) => ({
+      '#': index + 1,
+      'Item': item.name,
+      'Total en Inventario': item.total,
+      'Disponibles': item.available,
+      'Cantidad a Pedir': item.quantity,
+      'Precio Unitario (COP)': `$ ${item.unitPrice.toLocaleString('es-CO')}`,
+      'Total (COP)': `$ ${calculateItemTotal(item).toLocaleString('es-CO')}`
+    }));
+
+    // Agregar fila de total general
+    exportData.push({
+      '#': '',
+      'Item': 'TOTAL GENERAL',
+      'Total en Inventario': '',
+      'Disponibles': '',
+      'Cantidad a Pedir': orderItems.reduce((sum, item) => sum + item.quantity, 0),
+      'Precio Unitario (COP)': '',
+      'Total (COP)': `$ ${calculateGrandTotal().toLocaleString('es-CO')}`
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Orden de Compra');
+    
+    // Ajustar ancho de columnas
+    ws['!cols'] = [
+      { wch: 5 },
+      { wch: 40 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 25 },
+      { wch: 25 }
+    ];
+
+    XLSX.writeFile(wb, `Orden_de_Compra_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  if (!isOpen) return null;
+
+  const availableItemsToAdd = allItems.filter(itemName => 
+    !orderItems.find(orderItem => orderItem.name === itemName)
+  );
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h3 className="text-lg font-semibold text-white">Create Purchase Order</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-            <X className="w-5 h-5" />
+      
+      <div className="relative w-full max-w-6xl max-h-[90vh] overflow-auto rounded-2xl bg-slate-900 border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/95 backdrop-blur">
+          <div>
+            <h3 className="text-2xl font-bold text-white">Purchase Order</h3>
+            <p className="text-slate-400 text-sm mt-1">Manage and export your order items</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+            <X className="w-6 h-6" />
           </button>
         </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-slate-500 text-xs mb-1 uppercase tracking-wider">Item</label>
-            <p className="text-white font-medium">{item}</p>
-          </div>
-          <div>
-            <label className="block text-slate-500 text-xs mb-1 uppercase tracking-wider">Quantity to Order</label>
-            <input type="number" min="1" max="999" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all" />
-          </div>
-          <div>
-            <label className="block text-slate-500 text-xs mb-1 uppercase tracking-wider flex items-center justify-between">
-              <span>Unit Price (COP)</span>
-              <button onClick={() => setIsEditingPrice(!isEditingPrice)} className="text-cyan-400 text-[10px] hover:text-cyan-300 transition-colors">{isEditingPrice ? '✓ Done' : '✎ Edit'}</button>
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
-              <input type="number" min="0" value={unitPrice} onChange={(e) => setUnitPrice(Math.max(0, parseInt(e.target.value) || 0))} disabled={!isEditingPrice} className={`w-full bg-slate-800 border border-white/10 rounded-lg pl-8 pr-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all ${!isEditingPrice ? 'opacity-70 cursor-not-allowed' : ''}`} />
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button 
+                  onClick={() => setShowItemSelector(!showItemSelector)}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Item
+                </button>
+                
+                {showItemSelector && (
+                  <div className="absolute z-50 mt-2 w-80 max-h-60 overflow-auto bg-slate-800 border border-white/10 rounded-lg shadow-xl">
+                    {availableItemsToAdd.length === 0 ? (
+                      <p className="p-4 text-slate-400 text-sm">All items added</p>
+                    ) : (
+                      availableItemsToAdd.map(itemName => (
+                        <button
+                          key={itemName}
+                          onClick={() => addItem(itemName)}
+                          className="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                        >
+                          {itemName}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <span className="text-slate-400 text-sm">
+                {orderItems.length} item{orderItems.length !== 1 ? 's' : ''} in order
+              </span>
             </div>
-            {!isEditingPrice && <p className="text-slate-600 text-[10px] mt-1">💡 Suggested price based on item type</p>}
+
+            <button 
+              onClick={exportToExcel}
+              disabled={orderItems.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export to Excel
+            </button>
           </div>
-          <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/20">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-sm">Total Order Value</span>
-              <span className="text-2xl font-bold text-cyan-400">${total.toLocaleString('es-CO')}</span>
+
+          {/* Table */}
+          {orderItems.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-white/10 rounded-xl">
+              <Package className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400 text-lg font-medium">No items in order</p>
+              <p className="text-slate-500 text-sm mt-1">Click "Add Item" to start building your order</p>
             </div>
-            <p className="text-slate-500 text-[10px] mt-1">{quantity} unit{quantity > 1 ? 's' : ''} × ${unitPrice.toLocaleString('es-CO')}</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-white/10">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">Cancel</button>
-          <button onClick={() => { onConfirm({ item, quantity, unitPrice, total }); onClose(); }} className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg hover:from-cyan-400 hover:to-blue-400 transition-all shadow-lg shadow-cyan-500/20">Confirm Order</button>
+          ) : (
+            <div className="border border-white/10 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-800/50 text-slate-300">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Item</th>
+                    <th className="px-4 py-3 font-medium text-right">In Stock</th>
+                    <th className="px-4 py-3 font-medium text-right">Available</th>
+                    <th className="px-4 py-3 font-medium text-right">To Order</th>
+                    <th className="px-4 py-3 font-medium text-right">Unit Price</th>
+                    <th className="px-4 py-3 font-medium text-right">Total</th>
+                    <th className="px-4 py-3 font-medium text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {orderItems.map((item, index) => (
+                    <tr key={item.name} className="hover:bg-white/5 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="text-white font-medium">{item.name}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-400">{item.total}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          item.available <= 3 ? 'bg-rose-500/20 text-rose-400' :
+                          item.available < 15 ? 'bg-amber-500/20 text-amber-400' :
+                          'bg-emerald-500/20 text-emerald-400'
+                        }`}>
+                          {item.available}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.name, parseInt(e.target.value) || 1)}
+                          className="w-20 bg-slate-800 border border-white/10 rounded px-2 py-1 text-right text-white text-sm focus:ring-2 focus:ring-cyan-500/50"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-slate-500 text-xs">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.unitPrice}
+                            onChange={(e) => updateUnitPrice(item.name, parseInt(e.target.value) || 0)}
+                            className="w-24 bg-slate-800 border border-white/10 rounded px-2 py-1 text-right text-white text-sm focus:ring-2 focus:ring-cyan-500/50"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-emerald-400 font-semibold">
+                          ${calculateItemTotal(item).toLocaleString('es-CO')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button 
+                          onClick={() => removeItem(item.name)}
+                          className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-slate-800/50 border-t border-white/10">
+                  <tr>
+                    <td colSpan="4" className="px-4 py-4 text-right text-slate-400 font-medium">
+                      Grand Total:
+                    </td>
+                    <td colSpan="3" className="px-4 py-4 text-right">
+                      <span className="text-2xl font-bold text-cyan-400">
+                        ${calculateGrandTotal().toLocaleString('es-CO')} COP
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -91,9 +303,8 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // ✅ NUEVO: Estados para la modal de orden
+  // ✅ Estados para la modal de orden
   const [showOrderModal, setShowOrderModal] = useState(false);
-  const [orderItem, setOrderItem] = useState(null);
 
   useEffect(() => {
     if (!isInitialized && availableItems.length > 0) {
@@ -242,7 +453,7 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
       });
 
       return { 
-         data: groups.map(g => ({ name: g.label || g.time, value: g.count })),
+        data: groups.map(g => ({ name: g.label || g.time, value: g.count })),
         config: viewMode 
       };
 
@@ -289,15 +500,6 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
       return {  data, config: 'range' };
     }
   }, [baseAssets, selectedItems, availableItems.length, viewMode, dateRange]);
-
-  const calculateYAxisTicks = (maxValue, step) => {
-    const roundedMax = Math.ceil(maxValue / step) * step;
-    const ticks = [];
-    for (let i = 0; i <= roundedMax; i += step) {
-      ticks.push(i);
-    }
-    return ticks;
-  };
 
   const yAxisConfig = useMemo(() => {
     const isAllItems = selectedItems.length === 0 || selectedItems.length === availableItems.length;
@@ -361,17 +563,6 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
 
   const isAllSelected = selectedItems.length === 0 || selectedItems.length === availableItems.length;
 
-  // ✅ NUEVO: Funciones para la modal de orden
-  const handleOpenOrderModal = (itemName) => {
-    setOrderItem(itemName);
-    setShowOrderModal(true);
-  };
-
-  const handleConfirmOrder = (orderData) => {
-    console.log('📦 Order confirmed:', orderData);
-    // Aquí puedes agregar: API call, toast, localStorage, etc.
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
@@ -384,14 +575,24 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
 
       {lowStockAlerts.length > 0 && (
         <div className="p-6 rounded-xl bg-gradient-to-br from-rose-950/40 to-orange-950/40 backdrop-blur-md border border-rose-500/30">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-rose-500/20">
-              <AlertCircle className="w-6 h-6 text-rose-400" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-rose-500/20">
+                <AlertCircle className="w-6 h-6 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Active Alerts</h3>
+                <p className="text-slate-400 text-sm">{lowStockAlerts.length} items require attention</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-white">Active Alerts</h3>
-              <p className="text-slate-400 text-sm">{lowStockAlerts.length} items require attention</p>
-            </div>
+            
+            <button 
+              onClick={() => setShowOrderModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              <Package className="w-4 h-4" />
+              Create Order
+            </button>
           </div>
           
           <div className="space-y-3">
@@ -416,16 +617,11 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  {/* ✅ CAMBIADO: <p> por <button> para abrir la modal */}
-                  <button 
-                    onClick={() => handleOpenOrderModal(alert.item)}
-                    className={`text-sm font-semibold hover:underline ${
-                      alert.severity === 'critical' ? 'text-rose-400' : 'text-orange-400'
-                    }`}
-                  >
-                    {alert.available <= 3 ? 'Order Now!' : 'Reorder Soon'}
-                  </button>
-                  <p className="text-slate-500 text-xs">Low stock</p>
+                  <p className={`text-sm font-semibold ${
+                    alert.severity === 'critical' ? 'text-rose-400' : 'text-orange-400'
+                  }`}>
+                    {alert.available <= 3 ? 'Critical' : 'Low Stock'}
+                  </p>
                 </div>
               </div>
             ))}
@@ -751,12 +947,12 @@ const StatisticsPage = ({ assets = [], availableItems = [] }) => {
         </div>
       </div>
 
-      {/* ✅ NUEVO: Modal de Orden de Compra (agregado al final del return) */}
+      {/* ✅ NUEVO: Modal de Orden de Compra con Tabla */}
       <OrderModal 
         isOpen={showOrderModal} 
         onClose={() => setShowOrderModal(false)} 
-        item={orderItem} 
-        onConfirm={handleConfirmOrder} 
+        lowStockItems={lowStockAlerts}
+        allItems={availableItems}
       />
     </div>
   );
