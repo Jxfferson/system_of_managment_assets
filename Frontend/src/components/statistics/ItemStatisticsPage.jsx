@@ -167,7 +167,7 @@ const OrderModal = ({ isOpen, onClose, item, available, total }) => {
           <div className="flex justify-end">
             <button 
               onClick={exportToExcel}
-              className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg transition-colors font-semibold"
+              className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors font-semibold"
             >
               <Download className="w-5 h-5" />
               Export to Excel

@@ -192,7 +192,7 @@ const OrderModal = ({ isOpen, onClose, lowStockItems, allItems }) => {
             <button 
               onClick={exportToExcel}
               disabled={orderItems.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
             >
               <Download className="w-4 h-4" />
               Export to Excel
