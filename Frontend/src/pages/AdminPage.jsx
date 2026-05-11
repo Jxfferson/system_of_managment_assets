@@ -69,6 +69,15 @@ const AdminPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [editingAsset, setEditingAsset] = useState(initialAsset);
   const [lotData, setLotData] = useState(initialLotData);
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const [previousRate, setPreviousRate] = useState(null);
+  const [rateTrend, setRateTrend] = useState('neutral');
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateError, setRateError] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [showRate, setShowRate] = useState(true);
+  const [isEditingRate, setIsEditingRate] = useState(false);
+  const [manualRate, setManualRate] = useState(null);
   const [filters, setFilters] = useState({ 
     serial: '', destino: '', item: '',
     fechaEntrada: '', fechaSalida: '',
@@ -83,17 +92,13 @@ const AdminPage = () => {
     }
     return DEFAULT_PREFIXES;
   });
-  
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  
   const formContainerRef = useRef(null);
-
   const isItemDetail = location.pathname.startsWith('/admin/items/');
   const currentItemName = isItemDetail ? decodeURIComponent(location.pathname.split('/').pop() || '') : null;
 
-  // --- AUTH & LOCKOUT EFFECTS ---
   useEffect(() => {
     if (!localStorage.getItem('csrf_token')) {
       localStorage.setItem('csrf_token', crypto.randomUUID());
@@ -133,26 +138,20 @@ const AdminPage = () => {
     localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
   }, [itemPrefixMap]);
 
-  // ✅ URL SYNC EFFECT - Forzar inicio en Assets
   useEffect(() => {
-    // Si estamos en /admin (sin ruta específica), forzar assets
     if (location.pathname === '/admin') {
       setActiveTab('assets');
-    }
-    // Si estamos explícitamente en /admin/statistics
-    else if (location.pathname === '/admin/statistics') {
+    } else if (location.pathname === '/admin/statistics') {
       const urlParams = new URLSearchParams(location.search);
       const itemFromUrl = urlParams.get('item');
-      
       if (itemFromUrl) {
         setActiveTab('itemStatistics');
       } else {
         setActiveTab('statistics');
       }
     }
-  }, [location.pathname, location.search]);  // 👈 Sin activeTab en dependencias
+  }, [location.pathname, location.search]);
 
-  // --- LOGOUT HANDLER ---
   const handleLogout = useCallback(() => {
     setIsAuthenticated(false);
     localStorage.removeItem('auth_token');
@@ -164,7 +163,6 @@ const AdminPage = () => {
     toast({ title: "Logout", description: "Session closed successfully" });
   }, [navigate]);
 
-  // --- IDLE TIMEOUT ---
   useEffect(() => {
     if (!isAuthenticated) return;
     let timeout;
@@ -183,14 +181,10 @@ const AdminPage = () => {
 
   useEffect(() => {
     if (showForm && formContainerRef.current) {
-      formContainerRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      });
+      formContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [showForm]);
 
-  // --- DATA LOADING ---
   const loadAssets = useCallback(async () => {
     setLoading(true);
     try {
@@ -228,28 +222,78 @@ const AdminPage = () => {
     }
   }, [handleLogout]);
 
+  const fetchExchangeRate = useCallback(async () => {
+    setRateLoading(true);
+    try {
+      const response = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+      const data = await response.json();
+      const copRate = data.usd.cop;
+      
+      if (copRate) {
+        if (exchangeRate !== null) {
+          if (copRate > exchangeRate) setRateTrend('up');
+          else if (copRate < exchangeRate) setRateTrend('down');
+          else setRateTrend('neutral');
+        }
+        setPreviousRate(exchangeRate);
+        setExchangeRate(copRate);
+        setLastUpdate(new Date());
+        setRateError(false);
+      } else {
+        setRateError(true);
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      try {
+        const fallbackResponse = await fetch('https://api.frankfurter.app/latest?from=USD&to=COP');
+        const fallbackData = await fallbackResponse.json();
+        const copRate = fallbackData.rates.COP;
+        
+        if (copRate) {
+          if (exchangeRate !== null) {
+            if (copRate > exchangeRate) setRateTrend('up');
+            else if (copRate < exchangeRate) setRateTrend('down');
+            else setRateTrend('neutral');
+          }
+          setPreviousRate(exchangeRate);
+          setExchangeRate(copRate);
+          setLastUpdate(new Date());
+          setRateError(false);
+        } else {
+          setRateError(true);
+        }
+      } catch (fallbackError) {
+        setRateError(true);
+      }
+    } finally {
+      setRateLoading(false);
+    }
+  }, [exchangeRate]);
+
+  useEffect(() => {
+    fetchExchangeRate();
+    const interval = setInterval(fetchExchangeRate, 20 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchExchangeRate]);
+
   useEffect(() => {
     if (isAuthenticated) loadAssets();
   }, [isAuthenticated, loadAssets]);
 
-  // --- POLLING EFFECT ---
   useEffect(() => {
     if (!isAuthenticated) return;
     const POLL_INTERVAL = 10000;
     let intervalId;
-
     const poll = () => {
       if (showForm || showLotForm) return;
       if (document.hidden) return;
       refreshAssets();
     };
-
     poll();
     intervalId = setInterval(poll, POLL_INTERVAL);
     return () => clearInterval(intervalId);
   }, [isAuthenticated, showForm, showLotForm, refreshAssets]);
 
-  // --- SHORTCUTS ---
   useKeyboardShortcut('ctrl+alt+n', () => {
     if (activeTab === 'assets') {
       toast({ title: "New Asset" });
@@ -278,14 +322,11 @@ const AdminPage = () => {
     }
   }, { enabled: isAuthenticated });
 
-  // --- HELPERS ---
   const compareDates = (date1, date2) => {
     if (!date1 || !date2) return false;
     const d1 = new Date(date1);
     const d2 = new Date(date2);
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
   };
 
   const filteredAssets = assets.filter(asset => {
@@ -304,7 +345,6 @@ const AdminPage = () => {
     return matchSerial && matchDestino && matchItem && matchSede && matchFechaEntrada && matchFechaSalida && matchReturnType && matchObservaciones;
   });
 
-  // --- ACTIONS ---
   const handleLogin = (enteredPassword) => {
     if (!enteredPassword || enteredPassword.length < 4) {
       setError('Contraseña muy corta');
@@ -378,13 +418,10 @@ const AdminPage = () => {
 
   const getNextSerialNumberByItem = (itemName) => {
     const prefix = itemPrefixMap[itemName] || generatePrefix(itemName);
-    const numbers = assets
-      .filter(a => a.name === itemName && a.serial)
-      .map(a => {
-        const numMatch = a.serial.match(new RegExp(`^${prefix}(\\d+)$`));
-        return numMatch ? parseInt(numMatch[1], 10) : null;
-      })
-      .filter(n => n !== null && !isNaN(n));
+    const numbers = assets.filter(a => a.name === itemName && a.serial).map(a => {
+      const numMatch = a.serial.match(new RegExp(`^${prefix}(\\d+)$`));
+      return numMatch ? parseInt(numMatch[1], 10) : null;
+    }).filter(n => n !== null && !isNaN(n));
     return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
   };
 
@@ -463,16 +500,7 @@ const AdminPage = () => {
     for (let i = 0; i < quantity; i++) {
       const serial = `${prefix}${String(nextSerialNum).padStart(5, '0')}`;
       if (assets.some(a => a.serial === serial)) { nextSerialNum++; continue; }
-      newAssets.push({ 
-        name: lotData.item, 
-        serial, 
-        fecha_ingreso: lotData.fecha_ingreso, 
-        fecha_salida: '', 
-        destino: '', 
-        tipo_retorno: '', 
-        observaciones_retorno: '',
-        Sede_Actual: lotData.Sede_Actual || null 
-      });
+      newAssets.push({ name: lotData.item, serial, fecha_ingreso: lotData.fecha_ingreso, fecha_salida: '', destino: '', tipo_retorno: '', observaciones_retorno: '', Sede_Actual: lotData.Sede_Actual || null });
       nextSerialNum++;
     }
     if (newAssets.length === 0) {
@@ -513,6 +541,28 @@ const AdminPage = () => {
     setShowForm(true);
   };
 
+const TrendIndicator = () => {
+  if (rateTrend === 'up') {
+    return (
+      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    );
+  } else if (rateTrend === 'down') {
+    return (
+      <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+      </svg>
+    );
+  } else {
+    return (
+      <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4-4 4M3 12h18" />
+      </svg>
+    );
+  }
+};
+
   if (!isAuthenticated) {
     const isLocked = lockoutUntil && Date.now() < lockoutUntil;
     const timeLeft = isLocked ? Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000)) : 0;
@@ -521,11 +571,82 @@ const AdminPage = () => {
 
   return (
     <>
-      <div className="fixed top-6 left-12 w-fit z-50 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold tracking-tighter text-gray-200">OTD</span>
-          <span className="text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Support</span>
-        </div>
+      {/* 🔹 Tasa de cambio USD/COP - Derecha con indicadores de tendencia */}
+      <div className="fixed top-6 right-12 z-50 flex items-center gap-2">
+        {showRate ? (
+          <div className="flex items-center gap-3 px-5 py-2.5 bg-gradient-to-r from-cyan-950/60 to-blue-950/60 backdrop-blur-md border border-cyan-500/30 rounded-xl shadow-lg shadow-cyan-500/10">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-500/20">
+                <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">USD → COP</p>
+                
+                {rateLoading ? (
+                  <div className="w-24 h-6 bg-slate-700/50 rounded animate-pulse mt-0.5" />
+                ) : rateError ? (
+                  <p className="text-sm text-rose-400 font-mono font-bold">--</p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold text-cyan-400 font-mono">
+                      ${exchangeRate?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    {previousRate && <TrendIndicator />}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {lastUpdate && !rateLoading && !rateError && (
+              <>
+                <div className="h-8 w-px bg-white/10 mx-1" />
+                <div className="text-right">
+                  <p className="text-[9px] text-slate-500">Updated</p>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </p>
+                </div>
+              </>
+            )}
+            
+            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-white/10">
+              <button 
+                onClick={fetchExchangeRate}
+                disabled={rateLoading}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
+                title="Actualizar tasa"
+              >
+                <svg className={`w-4 h-4 text-slate-400 ${rateLoading ? 'animate-spin' : 'hover:text-cyan-400'} transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              
+              <button 
+                onClick={() => setShowRate(false)}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                title="Ocultar tasa"
+              >
+                <svg className="w-4 h-4 text-slate-400 hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setShowRate(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/60 backdrop-blur-md border border-cyan-500/20 rounded-xl hover:bg-slate-700/60 transition-all"
+            title="Mostrar tasa USD/COP"
+          >
+            <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-sm text-slate-400">Show Rate</span>
+          </button>
+        )}
       </div>
 
       <div className="min-h-screen px-6 pt-20 pb-12 overflow-x-auto">
@@ -543,13 +664,8 @@ const AdminPage = () => {
             />
           </div>
 
-          {/* Vista detallada del item */}
           {isItemDetail && currentItemName ? (
-            <ItemDetailPage 
-              assets={assets} 
-              itemName={currentItemName}
-              onBack={() => navigate('/admin')}
-            />
+            <ItemDetailPage assets={assets} itemName={currentItemName} onBack={() => navigate('/admin')} />
           ) : activeTab === 'assets' ? (
             <>
               <AssetStats 
@@ -592,29 +708,14 @@ const AdminPage = () => {
               <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
             </>
           ) : activeTab === 'items' ? (
-            <ItemManager
-              items={itemPrefixMap}
-              onItemCreated={handleItemCreated}              
-              onItemUpdated={handleItemUpdated}
-              onItemDeleted={handleItemDeleted}             
-            /> 
+            <ItemManager items={itemPrefixMap} onItemCreated={handleItemCreated} onItemUpdated={handleItemUpdated} onItemDeleted={handleItemDeleted} /> 
           ) : activeTab === 'statistics' ? (
-            <StatisticsPage 
-              assets={assets} 
-              availableItems={Object.keys(itemPrefixMap)}
-            />
+            <StatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />
           ) : activeTab === 'itemStatistics' ? (
-            <ItemStatisticsPage 
-              assets={assets} 
-              availableItems={Object.keys(itemPrefixMap)}
-            />
+            <ItemStatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />
           ) : null}
 
-          <ChangePasswordModal 
-            isOpen={showChangePasswordModal} 
-            onClose={() => setShowChangePasswordModal(false)} 
-            onSuccess={handlePasswordChangeSuccess} 
-          />
+          <ChangePasswordModal isOpen={showChangePasswordModal} onClose={() => setShowChangePasswordModal(false)} onSuccess={handlePasswordChangeSuccess} />
         </div>
       </div>
     </>
