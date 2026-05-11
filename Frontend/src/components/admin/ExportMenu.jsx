@@ -8,9 +8,7 @@ const ExportMenu = ({ filteredAssets }) => {
   const [showMenu, setShowMenu] = React.useState(false);
   const [debugMessage, setDebugMessage] = React.useState('');
 
-  const exportToExcel = React.useCallback(() => {
-    console.log('Función exportToExcel ejecutándose');
-    
+  const exportToExcel = React.useCallback(() => {    
     if (!filteredAssets || filteredAssets.length === 0) {
       console.warn('No hay datos para exportar');
       setDebugMessage('No hay datos para exportar');
@@ -78,23 +76,16 @@ const ExportMenu = ({ filteredAssets }) => {
 
   React.useEffect(() => {
     const handleKeyDown = (event) => {
-      console.log('Tecla presionada:', event.key);
-      console.log('Ctrl:', event.ctrlKey, 'Alt:', event.altKey, 'Meta:', event.metaKey);
       
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'e') {
         event.preventDefault();
-        console.log('Atajo detectado: Ctrl+Alt+E');
-        setDebugMessage('Atajo detectado - Exportando...');
         exportToExcel();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    console.log('Listener de teclado registrado');
-    
+    window.addEventListener('keydown', handleKeyDown);    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      console.log('Listener de teclado removido');
     };
   }, [exportToExcel]);
 

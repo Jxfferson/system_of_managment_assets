@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 import * as XLSX from 'xlsx';
 
-// 🔹 Precios base en COP
 const PRODUCT_PRICES = {
   'Extensión de Cable eléctrico': 8000,
   'Conversores Displayport a VGA Hembra': 13500,
@@ -17,6 +16,8 @@ const PRODUCT_PRICES = {
   'Cable Display Port a HDMI 1,8': 14538,
   'Cable Display Port a VGA 1,8': 16082,
   'Ethernet 3,0 LAN a USB': 29500,
+  'Ethernet USB 2,0': 25200,      
+  'Ethernet USB': 25200,  
   'Mouse': 21000,
   'Teclado': 49700
 };

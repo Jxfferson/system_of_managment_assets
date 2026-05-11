@@ -14,16 +14,23 @@ const DEFAULT_ITEMS = [
 ]
 
 const DEFAULT_PREFIXES = {
-  'Teclado ESENSES Basico USB': 'K',
-  'Mouse Alámbrico HP Óptico negro 100': 'M',
-  'Ethernet 3.0 LAN a USB': 'ELU',
-  'Cable Display Port a VGA 1,8': 'DPVG',
-  'Cable Display VGA a VGA 1,8': 'VGAV',
-  'Extension de Cable eléctrico': 'EXT'
+  'Teclado ESENSES Basico USB': { prefix: 'K', price_cop: 49700 },
+  'Mouse Alámbrico HP Óptico negro 100': { prefix: 'M', price_cop: 21000 },
+  'Ethernet 3.0 LAN a USB': { prefix: 'ELU', price_cop: 29500 },
+  'Cable Display Port a VGA 1,8': { prefix: 'DPVG', price_cop: 14538 },
+  'Cable Display VGA a VGA 1,8': { prefix: 'VGAV', price_cop: 13500 },
+  'Extension de Cable eléctrico': { prefix: 'EXT', price_cop: 8000 }
 }
 
 // ← Lista de sedes (debe coincidir con el backend)
 const SEDES_DISPONIBLES = ["Connecta 80", "Caracol", "American BPS"]
+
+// 🔹 FUNCIÓN PARA EXTRAER PREFIX (maneja string u objeto)
+const getPrefix = (data) => {
+  if (typeof data === 'string') return data;
+  if (typeof data === 'object' && data !== null) return data.prefix || '';
+  return '';
+};
 
 export default function AssetLotForm({
   isOpen,
@@ -53,9 +60,12 @@ export default function AssetLotForm({
   }
 
   const selectedItem = lotData.item
+  
+  // 🔹 CORREGIDO: Extraer prefix correctamente
   const serialPrefix = selectedItem 
-    ? (initialPrefixMap[selectedItem] || selectedItem.slice(0,3).toUpperCase().replace(/[^A-Z]/g,'')) 
+    ? getPrefix(initialPrefixMap[selectedItem]) || selectedItem.slice(0,3).toUpperCase().replace(/[^A-Z]/g,'') 
     : ''
+    
   const previewSerial = serialPrefix && nextSerialNumber 
     ? `${serialPrefix}${String(nextSerialNumber).padStart(5,'0')}` 
     : ''

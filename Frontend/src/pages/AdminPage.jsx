@@ -28,11 +28,11 @@ const DEFAULT_ITEMS = [
 ];
 
 const DEFAULT_PREFIXES = {
-  'Teclado ESENSES Basico USB': 'K',
-  'Mouse Alámbrico HP Óptico negro 100': 'M',
-  'Cable Display Port a VGA 1,8': 'DPVG',
-  'Cable Display VGA a VGA 1,8': 'VGAV',
-  'Extension de Cable eléctrico': 'EXT'
+  'Teclado ESENSES Basico USB': { prefix: 'K', price_cop: 49700 },
+  'Mouse Alámbrico HP Óptico negro 100': { prefix: 'M', price_cop: 21000 },
+  'Cable Display Port a VGA 1,8': { prefix: 'DPVG', price_cop: 14538 },
+  'Cable Display VGA a VGA 1,8': { prefix: 'VGAV', price_cop: 13500 },
+  'Extension de Cable eléctrico': { prefix: 'EXT', price_cop: 8000 }
 };
 
 const STORAGE_ITEMS_KEY = 'inventory_items';
@@ -41,6 +41,20 @@ const generatePrefix = (itemName) => {
   if (!itemName) return 'ITM';
   const prefix = itemName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   return prefix || 'ITM';
+};
+
+// 🔹 Función para normalizar datos (string → objeto)
+const normalizeItemData = (data) => {
+  if (typeof data === 'string') {
+    return { prefix: data, price_cop: 10000 };
+  }
+  if (typeof data === 'object' && data !== null) {
+    return {
+      prefix: data.prefix || 'ITM',
+      price_cop: data.price_cop || 10000
+    };
+  }
+  return { prefix: 'ITM', price_cop: 10000 };
 };
 
 const initialAsset = {
@@ -61,7 +75,6 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('assets');
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState(null);
-
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -85,13 +98,9 @@ const AdminPage = () => {
     Sede_Actual: ''
   });
   
-  const [itemPrefixMap, setItemPrefixMap] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_ITEMS_KEY);
-    if (stored) {
-      try { return JSON.parse(stored); } catch (e) { return DEFAULT_PREFIXES; }
-    }
-    return DEFAULT_PREFIXES;
-  });
+  const [itemPrefixMap, setItemPrefixMap] = useState({});
+  const [itemsLoading, setItemsLoading] = useState(true);
+  
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,6 +108,7 @@ const AdminPage = () => {
   const isItemDetail = location.pathname.startsWith('/admin/items/');
   const currentItemName = isItemDetail ? decodeURIComponent(location.pathname.split('/').pop() || '') : null;
 
+  // 🔹 Inicialización de autenticación
   useEffect(() => {
     if (!localStorage.getItem('csrf_token')) {
       localStorage.setItem('csrf_token', crypto.randomUUID());
@@ -134,9 +144,99 @@ const AdminPage = () => {
     return () => clearInterval(timer);
   }, [lockoutUntil]);
 
+  // 🔹 Cargar items desde API + localStorage al autenticarse
   useEffect(() => {
-    localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
+    if (!isAuthenticated) return;
+    
+    const fetchItems = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/api/almacen/items-list');
+        
+        if (res.ok) {
+          const data = await res.json();
+          const apiMap = {};
+          data.forEach(i => { 
+            apiMap[i.name] = { prefix: i.prefix, price_cop: i.price_cop }; 
+          });
+          
+          const stored = localStorage.getItem(STORAGE_ITEMS_KEY);
+          let localMap = {};
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              Object.entries(parsed).forEach(([name, data]) => {
+                localMap[name] = normalizeItemData(data);
+              });
+            } catch (e) {}
+          }
+          
+          const normalizedDefaults = {};
+          Object.entries(DEFAULT_PREFIXES).forEach(([name, data]) => {
+            normalizedDefaults[name] = normalizeItemData(data);
+          });
+          
+          const merged = { 
+            ...normalizedDefaults, 
+            ...localMap, 
+            ...apiMap 
+          };
+          
+          setItemPrefixMap(merged);
+        }
+      } catch (err) {
+        console.error('Error loading items:', err);
+        // Fallback a defaults
+        const normalizedDefaults = {};
+        Object.entries(DEFAULT_PREFIXES).forEach(([name, data]) => {
+          normalizedDefaults[name] = normalizeItemData(data);
+        });
+        setItemPrefixMap(normalizedDefaults);
+      } finally {
+        setItemsLoading(false);
+      }
+    };
+    
+    fetchItems();
+  }, [isAuthenticated]);
+
+  // 🔹 Guardar en localStorage cuando cambie itemPrefixMap
+  useEffect(() => {
+    if (Object.keys(itemPrefixMap).length > 0) {
+      localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
+    }
   }, [itemPrefixMap]);
+
+  // 🔹 Función para recargar items (usada por ItemManager)
+  const refreshItems = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/api/almacen/items-list');
+      if (res.ok) {
+        const data = await res.json();
+        const apiMap = {};
+        data.forEach(i => { 
+          apiMap[i.name] = { prefix: i.prefix, price_cop: i.price_cop }; 
+        });
+        
+        setItemPrefixMap(prev => {
+          const normalizedPrev = {};
+          Object.entries(prev).forEach(([name, data]) => {
+            normalizedPrev[name] = normalizeItemData(data);
+          });
+          
+          const normalizedDefaults = {};
+          Object.entries(DEFAULT_PREFIXES).forEach(([name, data]) => {
+            normalizedDefaults[name] = normalizeItemData(data);
+          });
+          
+          return { 
+            ...normalizedDefaults, 
+            ...normalizedPrev, 
+            ...apiMap 
+          };
+        });
+      }
+    } catch (err) { console.error(err); }
+  };
 
   useEffect(() => {
     if (location.pathname === '/admin') {
@@ -190,14 +290,6 @@ const AdminPage = () => {
     try {
       const data = await getAssets();
       setAssets(data);
-      const prefixMap = { ...DEFAULT_PREFIXES };
-      data.forEach(asset => {
-        if (asset.name && asset.serial && !prefixMap[asset.name]) {
-          const match = asset.serial.match(/^([A-Z0-9]+)/);
-          if (match) prefixMap[asset.name] = match[1];
-        }
-      });
-      setItemPrefixMap(prefixMap);
     } catch (err) {
       if (err.message.includes('401') || err.message.includes('unauthorized')) {
         handleLogout();
@@ -395,15 +487,19 @@ const AdminPage = () => {
     toast({ title: "Password changed", description: "Admin password updated successfully." });
   };
 
-  const handleItemCreated = (name, prefix) => {
-    setItemPrefixMap(prev => ({ ...prev, [name]: prefix || generatePrefix(name) }));
+  // 🔹 Funciones actualizadas para manejar formato de objeto
+  const handleItemCreated = (name, prefix, price_cop = 10000) => {
+    setItemPrefixMap(prev => ({ 
+      ...prev, 
+      [name]: { prefix: prefix || generatePrefix(name), price_cop } 
+    }));
   };
 
-  const handleItemUpdated = (oldName, newName, newPrefix) => {
+  const handleItemUpdated = (oldName, newName, newPrefix, newPrice = 10000) => {
     setItemPrefixMap(prev => {
       const newMap = { ...prev };
       delete newMap[oldName];
-      newMap[newName] = newPrefix || generatePrefix(newName);
+      newMap[newName] = { prefix: newPrefix || generatePrefix(newName), price_cop: newPrice };
       return newMap;
     });
   };
@@ -417,7 +513,8 @@ const AdminPage = () => {
   };
 
   const getNextSerialNumberByItem = (itemName) => {
-    const prefix = itemPrefixMap[itemName] || generatePrefix(itemName);
+    const itemData = itemPrefixMap[itemName];
+    const prefix = itemData?.prefix || generatePrefix(itemName);
     const numbers = assets.filter(a => a.name === itemName && a.serial).map(a => {
       const numMatch = a.serial.match(new RegExp(`^${prefix}(\\d+)$`));
       return numMatch ? parseInt(numMatch[1], 10) : null;
@@ -456,13 +553,15 @@ const AdminPage = () => {
     }
     let finalAsset = { ...editingAsset };
     if (!editingAsset.id) {
-      const prefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+      const itemData = itemPrefixMap[editingAsset.name];
+      const prefix = itemData?.prefix || generatePrefix(editingAsset.name);
       const nextNum = getNextSerialNumberByItem(editingAsset.name);
       finalAsset.serial = `${prefix}${String(nextNum).padStart(5, '0')}`;
     } else if (updateSerial) {
       const oldAsset = assets.find(a => String(a.id) === String(editingAsset.id));
       if (oldAsset && oldAsset.name !== editingAsset.name) {
-        const newPrefix = itemPrefixMap[editingAsset.name] || generatePrefix(editingAsset.name);
+        const itemData = itemPrefixMap[editingAsset.name];
+        const newPrefix = itemData?.prefix || generatePrefix(editingAsset.name);
         const nextNum = getNextSerialNumberByItem(editingAsset.name);
         finalAsset.serial = `${newPrefix}${String(nextNum).padStart(5, '0')}`;
       }
@@ -494,7 +593,8 @@ const AdminPage = () => {
       toast({ title: "Error", description: "Quantity must be between 5 and 999", variant: "destructive" });
       return;
     }
-    const prefix = itemPrefixMap[lotData.item] || generatePrefix(lotData.item);
+    const itemData = itemPrefixMap[lotData.item];
+    const prefix = itemData?.prefix || generatePrefix(lotData.item);
     let nextSerialNum = getNextSerialNumberByItem(lotData.item);
     const newAssets = [];
     for (let i = 0; i < quantity; i++) {
@@ -541,27 +641,27 @@ const AdminPage = () => {
     setShowForm(true);
   };
 
-const TrendIndicator = () => {
-  if (rateTrend === 'up') {
-    return (
-      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-      </svg>
-    );
-  } else if (rateTrend === 'down') {
-    return (
-      <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-      </svg>
-    );
-  } else {
-    return (
-      <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4-4 4M3 12h18" />
-      </svg>
-    );
-  }
-};
+  const TrendIndicator = () => {
+    if (rateTrend === 'up') {
+      return (
+        <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+      );
+    } else if (rateTrend === 'down') {
+      return (
+        <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+        </svg>
+      );
+    } else {
+      return (
+        <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4-4 4M3 12h18" />
+        </svg>
+      );
+    }
+  };
 
   if (!isAuthenticated) {
     const isLocked = lockoutUntil && Date.now() < lockoutUntil;
@@ -703,12 +803,16 @@ const TrendIndicator = () => {
                 nextSerialNumber={getNextSerialNumberByItem(lotData.item)} 
                 initialItems={Object.keys(itemPrefixMap)} 
                 initialPrefixMap={itemPrefixMap} 
-                onItemCreated={(name, prefix) => setItemPrefixMap(prev => ({ ...prev, [name]: prefix }))} 
+                onItemCreated={(name, prefix, price) => handleItemCreated(name, prefix, price)} 
               />
               <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
             </>
           ) : activeTab === 'items' ? (
-            <ItemManager items={itemPrefixMap} onItemCreated={handleItemCreated} onItemUpdated={handleItemUpdated} onItemDeleted={handleItemDeleted} /> 
+            itemsLoading ? (
+              <div className="text-center text-slate-400 py-8">Loading items...</div>
+            ) : (
+              <ItemManager items={itemPrefixMap} onRefresh={refreshItems} />
+            )
           ) : activeTab === 'statistics' ? (
             <StatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />
           ) : activeTab === 'itemStatistics' ? (

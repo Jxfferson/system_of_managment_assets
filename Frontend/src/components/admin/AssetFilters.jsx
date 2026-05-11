@@ -33,12 +33,8 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      console.log('Tecla presionada:', event.key);
-      console.log('Ctrl:', event.ctrlKey, 'Alt:', event.altKey, 'Shift:', event.shiftKey);
-      
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        console.log('Atajo detectado: Ctrl+Alt+F - Enfocar Serial');
         setDebugMessage('Enfocando búsqueda...');
         serialRef.current?.focus();
         setTimeout(() => setDebugMessage(''), 2000);
@@ -46,19 +42,14 @@ const AssetFilters = ({ filters, setFilters, availableItems = [] }) => {
 
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'c') {
         event.preventDefault();
-        console.log('Atajo detectado: Ctrl+Alt+C - Limpiar filtros');
-        setDebugMessage('Filtros limpiados');
         clearFilters();
         setTimeout(() => setDebugMessage(''), 2000);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    console.log('Listener de teclado registrado en AssetFilters');
-    
+    window.addEventListener('keydown', handleKeyDown);    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      console.log('Listener de teclado removido de AssetFilters');
     };
   }, []);
 

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { sanitizeString, sanitizeText } from '@/utils/sanitize';
 
-
 const SEDES_DISPONIBLES = ["Connecta 80", "Caracol", "American BPS"];
 
 const AssetForm = ({ 
@@ -39,7 +38,24 @@ const AssetForm = ({
   };
 
   const itemsList = availableItems.length > 0 ? availableItems : fallbackItems;
-  const prefixes = { ...fallbackPrefixes, ...itemPrefixMap };
+  
+  // 🔹 FUNCIÓN PARA EXTRAER PREFIX (maneja string u objeto)
+  const getPrefix = (data) => {
+    if (typeof data === 'string') return data;
+    if (typeof data === 'object' && data !== null) return data.prefix || '';
+    return '';
+  };
+  
+  // 🔹 Fusionar y normalizar prefixes
+  const prefixes = { 
+    ...fallbackPrefixes, 
+    ...Object.fromEntries(
+      Object.entries(itemPrefixMap).map(([name, data]) => [
+        name, 
+        getPrefix(data)
+      ])
+    )
+  };
   
   const selectedItem = editingAsset.name;
   const serialPrefix = selectedItem ? (prefixes[selectedItem] || '') : '';

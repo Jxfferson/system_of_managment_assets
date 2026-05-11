@@ -7,12 +7,16 @@ from pydantic import BaseModel
 
 from app.config.database import get_db
 from app.models.almacen import Almacen
+from app.models.item import Item 
 from app.schemas.almacen import AlmacenCreate, AlmacenUpdate, AlmacenResponse, SedeResponse
 
 router = APIRouter(prefix="/api/almacen", tags=["Almacen"])
 
 SEDES_PERMITIDAS = ["Connecta 80", "Caracol", "American BPS"]
 
+# =============================================================================
+# 🔹 MODELOS PYDANTIC
+# =============================================================================
 class ItemCreate(BaseModel):
     name: str
     serial_prefix: Optional[str] = None
@@ -23,6 +27,27 @@ class ItemResponse(BaseModel):
 
 class AlmacenBulkCreate(BaseModel):
     items: List[AlmacenCreate]
+
+class ItemCreateDB(BaseModel):
+    name: str
+    prefix: Optional[str] = None
+    price_cop: Optional[float] = 10000.0
+
+class ItemUpdateDB(BaseModel):
+    name: Optional[str] = None
+    prefix: Optional[str] = None
+    price_cop: Optional[float] = None
+
+class ItemResponseDB(BaseModel):
+    name: str
+    prefix: Optional[str]
+    price_cop: Optional[float]
+    class Config:
+        from_attributes = True
+
+# =============================================================================
+# 🔹 RUTAS ESPECÍFICAS (SIEMPRE VAN ARRIBA DE LAS QUE TIENEN {id})
+# =============================================================================
 
 @router.get("/sedes", response_model=List[SedeResponse])
 def get_available_sedes():
@@ -58,6 +83,57 @@ def get_available_items(db: Session = Depends(get_db)):
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/items-list", response_model=List[ItemResponseDB])
+def get_items_list(db: Session = Depends(get_db)):
+    try:
+        items = db.query(Item).order_by(Item.name).all()
+        return items
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/items", response_model=ItemResponseDB, status_code=201)
+def create_item(data: ItemCreateDB, db: Session = Depends(get_db)):
+    existing = db.query(Item).filter(Item.name == data.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Item ya existe")
+    new_item = Item(
+        name=data.name.strip(),
+        prefix=data.prefix.strip().upper() if data.prefix else None,
+        price_cop=data.price_cop or 10000.0
+    )
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
+
+@router.put("/items/{item_name}", response_model=ItemResponseDB)
+def update_item(item_name: str, data: ItemUpdateDB, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.name == item_name).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    if data.name:
+        item.name = data.name.strip()
+    if data.prefix is not None:
+        item.prefix = data.prefix.strip().upper() if data.prefix else None
+    if data.price_cop is not None:
+        item.price_cop = data.price_cop
+    db.commit()
+    db.refresh(item)
+    return item
+
+@router.delete("/items/{item_name}", status_code=200)
+def delete_item(item_name: str, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.name == item_name).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    db.delete(item)
+    db.commit()
+    return {"message": "Eliminado correctamente"}
+
+# =============================================================================
+# 🔹 RUTAS DE ALMACÉN (GENÉRICAS Y CON PARÁMETROS {id} VAN AL FINAL)
+# =============================================================================
+
 @router.get("/", response_model=List[AlmacenResponse])
 def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(Almacen)
@@ -71,13 +147,6 @@ def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
         ))
     return query.order_by(Almacen.ID.desc()).all()
 
-@router.get("/{id}", response_model=AlmacenResponse)
-def get_by_id(id: int, db: Session = Depends(get_db)):
-    item = db.query(Almacen).filter(Almacen.ID == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="No encontrado")
-    return item
-
 @router.post("/", response_model=AlmacenResponse, status_code=201)
 def create(data: AlmacenCreate, db: Session = Depends(get_db)):
     nuevo = Almacen(
@@ -88,7 +157,7 @@ def create(data: AlmacenCreate, db: Session = Depends(get_db)):
         Destino=data.Destino,
         Tipo_Retorno=data.Tipo_Retorno,
         Observaciones_Retorno=data.Observaciones_Retorno,
-        Sede_Actual=data.Sede_Actual  # ← NUEVO CAMPO
+        Sede_Actual=data.Sede_Actual
     )
     db.add(nuevo)
     db.commit()
@@ -131,6 +200,13 @@ def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{id}", response_model=AlmacenResponse)
+def get_by_id(id: int, db: Session = Depends(get_db)):
+    item = db.query(Almacen).filter(Almacen.ID == id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="No encontrado")
+    return item
 
 @router.put("/{id}", response_model=AlmacenResponse)
 def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
