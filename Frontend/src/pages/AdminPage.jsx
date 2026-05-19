@@ -43,7 +43,6 @@ const generatePrefix = (itemName) => {
   return prefix || 'ITM';
 };
 
-// 🔹 Función para normalizar datos (string → objeto)
 const normalizeItemData = (data) => {
   if (typeof data === 'string') {
     return { prefix: data, price_cop: 10000 };
@@ -108,7 +107,6 @@ const AdminPage = () => {
   const isItemDetail = location.pathname.startsWith('/admin/items/');
   const currentItemName = isItemDetail ? decodeURIComponent(location.pathname.split('/').pop() || '') : null;
 
-  // 🔹 Inicialización de autenticación
   useEffect(() => {
     if (!localStorage.getItem('csrf_token')) {
       localStorage.setItem('csrf_token', crypto.randomUUID());
@@ -144,7 +142,6 @@ const AdminPage = () => {
     return () => clearInterval(timer);
   }, [lockoutUntil]);
 
-  // 🔹 Cargar items desde API + localStorage al autenticarse
   useEffect(() => {
     if (!isAuthenticated) return;
     
@@ -185,7 +182,6 @@ const AdminPage = () => {
         }
       } catch (err) {
         console.error('Error loading items:', err);
-        // Fallback a defaults
         const normalizedDefaults = {};
         Object.entries(DEFAULT_PREFIXES).forEach(([name, data]) => {
           normalizedDefaults[name] = normalizeItemData(data);
@@ -199,14 +195,12 @@ const AdminPage = () => {
     fetchItems();
   }, [isAuthenticated]);
 
-  // 🔹 Guardar en localStorage cuando cambie itemPrefixMap
   useEffect(() => {
     if (Object.keys(itemPrefixMap).length > 0) {
       localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(itemPrefixMap));
     }
   }, [itemPrefixMap]);
 
-  // 🔹 Función para recargar items (usada por ItemManager)
   const refreshItems = async () => {
     try {
       const res = await fetch('http://localhost:8000/api/almacen/items-list');
@@ -315,11 +309,40 @@ const AdminPage = () => {
   }, [handleLogout]);
 
   const fetchExchangeRate = useCallback(async () => {
-    setRateLoading(true);
+  setRateLoading(true);
+  try {
+    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const copRate = data.rates.COP;
+    
+    if (copRate) {
+      if (exchangeRate !== null) {
+        if (copRate > exchangeRate) setRateTrend('up');
+        else if (copRate < exchangeRate) setRateTrend('down');
+        else setRateTrend('neutral');
+      }
+      setPreviousRate(exchangeRate);
+      setExchangeRate(copRate);
+      setLastUpdate(new Date());
+      setRateError(false);
+    } else {
+      console.error('No se encontró COP en la respuesta:', data);
+      setRateError(true);
+    }
+  } catch (error) {
+    console.error('Error API principal:', error);
+    
     try {
-      const response = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-      const data = await response.json();
-      const copRate = data.usd.cop;
+      const fallbackResponse = await fetch('https://open.er-api.com/v6/latest/USD');
+      const fallbackData = await fallbackResponse.json();
+      const copRate = fallbackData.rates.COP;
+      
+      console.log('Tasa fallback:', copRate);
       
       if (copRate) {
         if (exchangeRate !== null) {
@@ -334,33 +357,14 @@ const AdminPage = () => {
       } else {
         setRateError(true);
       }
-    } catch (error) {
-      console.error('Error fetching exchange rate:', error);
-      try {
-        const fallbackResponse = await fetch('https://api.frankfurter.app/latest?from=USD&to=COP');
-        const fallbackData = await fallbackResponse.json();
-        const copRate = fallbackData.rates.COP;
-        
-        if (copRate) {
-          if (exchangeRate !== null) {
-            if (copRate > exchangeRate) setRateTrend('up');
-            else if (copRate < exchangeRate) setRateTrend('down');
-            else setRateTrend('neutral');
-          }
-          setPreviousRate(exchangeRate);
-          setExchangeRate(copRate);
-          setLastUpdate(new Date());
-          setRateError(false);
-        } else {
-          setRateError(true);
-        }
-      } catch (fallbackError) {
-        setRateError(true);
-      }
-    } finally {
-      setRateLoading(false);
+    } catch (fallbackError) {
+      console.error('Error API fallback:', fallbackError);
+      setRateError(true);
     }
-  }, [exchangeRate]);
+  } finally {
+    setRateLoading(false);
+  }
+}, [exchangeRate]);
 
   useEffect(() => {
     fetchExchangeRate();
@@ -487,7 +491,6 @@ const AdminPage = () => {
     toast({ title: "Password changed", description: "Admin password updated successfully." });
   };
 
-  // 🔹 Funciones actualizadas para manejar formato de objeto
   const handleItemCreated = (name, prefix, price_cop = 10000) => {
     setItemPrefixMap(prev => ({ 
       ...prev, 
@@ -644,19 +647,19 @@ const AdminPage = () => {
   const TrendIndicator = () => {
     if (rateTrend === 'up') {
       return (
-        <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
         </svg>
       );
     } else if (rateTrend === 'down') {
       return (
-        <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
         </svg>
       );
     } else {
       return (
-        <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4-4 4M3 12h18" />
         </svg>
       );
@@ -671,27 +674,27 @@ const AdminPage = () => {
 
   return (
     <>
-      {/* 🔹 Tasa de cambio USD/COP - Derecha con indicadores de tendencia */}
-      <div className="fixed top-6 right-12 z-50 flex items-center gap-2">
+      {/* 🔹 Tasa de cambio USD/COP - Responsive para móvil */}
+      <div className="fixed top-2 right-2 sm:top-6 sm:right-12 z-50">
         {showRate ? (
-          <div className="flex items-center gap-3 px-5 py-2.5 bg-gradient-to-r from-cyan-950/60 to-blue-950/60 backdrop-blur-md border border-cyan-500/30 rounded-xl shadow-lg shadow-cyan-500/10">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-500/20">
-                <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2 sm:gap-3 px-3 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-cyan-950/60 to-blue-950/60 backdrop-blur-md border border-cyan-500/30 rounded-lg sm:rounded-xl shadow-lg shadow-cyan-500/10">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-500/20">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">USD → COP</p>
+              <div className="min-w-0">
+                <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider font-semibold whitespace-nowrap">USD → COP</p>
                 
                 {rateLoading ? (
-                  <div className="w-24 h-6 bg-slate-700/50 rounded animate-pulse mt-0.5" />
+                  <div className="w-16 h-4 sm:w-24 sm:h-6 bg-slate-700/50 rounded animate-pulse mt-0.5" />
                 ) : rateError ? (
-                  <p className="text-sm text-rose-400 font-mono font-bold">--</p>
+                  <p className="text-xs sm:text-sm text-rose-400 font-mono font-bold">--</p>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-bold text-cyan-400 font-mono">
-                      ${exchangeRate?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm sm:text-lg font-bold text-cyan-400 font-mono truncate">
+                      ${exchangeRate?.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </p>
                     {previousRate && <TrendIndicator />}
                   </div>
@@ -700,36 +703,35 @@ const AdminPage = () => {
             </div>
             
             {lastUpdate && !rateLoading && !rateError && (
-              <>
-                <div className="h-8 w-px bg-white/10 mx-1" />
+              <div className="hidden sm:flex items-center gap-1 ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-white/10">
                 <div className="text-right">
-                  <p className="text-[9px] text-slate-500">Updated</p>
-                  <p className="text-[10px] text-slate-400 font-mono">
-                    {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  <p className="text-[8px] sm:text-[9px] text-slate-500">Updated</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
+                    {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-              </>
+              </div>
             )}
             
-            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-white/10">
+            <div className="flex items-center gap-0.5 sm:gap-1 ml-auto sm:ml-2 pl-1 sm:pl-2 border-l border-white/10">
               <button 
                 onClick={fetchExchangeRate}
                 disabled={rateLoading}
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
+                className="p-1 sm:p-1.5 hover:bg-white/10 rounded transition-all disabled:opacity-50"
                 title="Actualizar tasa"
               >
-                <svg className={`w-4 h-4 text-slate-400 ${rateLoading ? 'animate-spin' : 'hover:text-cyan-400'} transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 ${rateLoading ? 'animate-spin' : 'hover:text-cyan-400'} transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>
               
               <button 
                 onClick={() => setShowRate(false)}
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                className="p-1 sm:p-1.5 hover:bg-white/10 rounded transition-all"
                 title="Ocultar tasa"
               >
-                <svg className="w-4 h-4 text-slate-400 hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
@@ -737,21 +739,22 @@ const AdminPage = () => {
         ) : (
           <button 
             onClick={() => setShowRate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/60 backdrop-blur-md border border-cyan-500/20 rounded-xl hover:bg-slate-700/60 transition-all"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 bg-slate-800/60 backdrop-blur-md border border-cyan-500/20 rounded-lg sm:rounded-xl hover:bg-slate-700/60 transition-all"
             title="Mostrar tasa USD/COP"
           >
-            <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-sm text-slate-400">Show Rate</span>
+            <span className="text-xs sm:text-sm text-slate-400 hidden sm:inline">Show Rate</span>
           </button>
         )}
       </div>
 
-      <div className="min-h-screen px-6 pt-20 pb-12 overflow-x-auto">
-        <div className="container mx-auto max-w-[90rem]">  
-          <div className="flex justify-between items-end mb-6 flex-wrap gap-3">
+      {/* 🔹 Contenedor principal responsive */}
+      <div className="min-h-screen px-3 sm:px-6 pt-16 sm:pt-20 pb-8 sm:pb-12 overflow-x-auto">
+        <div className="container mx-auto max-w-full sm:max-w-[90rem]">  
+          {/* 🔹 Header responsive */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 sm:mb-6 gap-3">
             <AdminHeader activeTab={activeTab} onTabChange={setActiveTab} />
             <AdminActions
               activeTab={activeTab}
@@ -764,6 +767,7 @@ const AdminPage = () => {
             />
           </div>
 
+          {/* 🔹 Contenido responsive */}
           {isItemDetail && currentItemName ? (
             <ItemDetailPage assets={assets} itemName={currentItemName} onBack={() => navigate('/admin')} />
           ) : activeTab === 'assets' ? (
@@ -805,7 +809,9 @@ const AdminPage = () => {
                 initialPrefixMap={itemPrefixMap} 
                 onItemCreated={(name, prefix, price) => handleItemCreated(name, prefix, price)} 
               />
-              <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
+              <div className="overflow-x-auto -mx-3 sm:mx-0">
+                <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
+              </div>
             </>
           ) : activeTab === 'items' ? (
             itemsLoading ? (
