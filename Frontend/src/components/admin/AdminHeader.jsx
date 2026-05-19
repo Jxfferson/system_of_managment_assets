@@ -31,7 +31,6 @@ export const AdminHeader = ({ activeTab, onTabChange, showItemStats = false }) =
           <BarChart3 className="w-4 h-4" /> Statistics
         </button>
         
-        {/* 👉 Nueva pestaña condicional */}
         {showItemStats && (
           <button
             onClick={() => onTabChange('itemStatistics')}

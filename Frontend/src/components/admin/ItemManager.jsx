@@ -64,25 +64,61 @@ const ItemManager = ({ items, onRefresh }) => {
     finally { setLoading(false); setDeleteConfirm({ isOpen: false, itemName: '' }); }
   };
 
+  const getPrice = (data) => {
+    if (typeof data === 'object' && data !== null) return data.price_cop || 10000;
+    return 10000;
+  };
+
+  const getPrefix = (data) => {
+    if (typeof data === 'string') return data;
+    if (typeof data === 'object' && data !== null) return data.prefix || '-';
+    return '-';
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-white">Item Management</h2>
+      <h2 className="text-2xl font-bold text-white">Item Management</h2>
+      
       <div className="p-4 rounded-xl bg-slate-900/60 border border-white/10">
         <h3 className="text-lg font-medium text-white mb-4">Create new item</h3>
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-[200px]">
             <label className="text-sm text-slate-400 block mb-1">Item name *</label>
-            <Input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="e.g. Monitor LG 24'" disabled={loading} />
+            <Input 
+              value={newItemName} 
+              onChange={e => setNewItemName(e.target.value)} 
+              placeholder="e.g. Monitor LG 24'" 
+              disabled={loading}
+              className="bg-slate-800/50 border-white/10"
+            />
           </div>
           <div className="w-24">
             <label className="text-sm text-slate-400 block mb-1">Prefix</label>
-            <Input value={newItemPrefix} onChange={e => setNewItemPrefix(e.target.value.toUpperCase().slice(0,6))} placeholder="MON" maxLength={6} className="uppercase" disabled={loading} />
+            <Input 
+              value={newItemPrefix} 
+              onChange={e => setNewItemPrefix(e.target.value.toUpperCase().slice(0,6))} 
+              placeholder="MON" 
+              maxLength={6} 
+              className="uppercase bg-slate-800/50 border-white/10"
+              disabled={loading}
+            />
           </div>
           <div className="w-28">
             <label className="text-sm text-slate-400 block mb-1">Price (COP)</label>
-            <Input type="number" min="0" value={newItemPrice} onChange={e => setNewItemPrice(parseInt(e.target.value)||0)} disabled={loading} />
+            <Input 
+              type="number" 
+              min="0" 
+              value={newItemPrice} 
+              onChange={e => setNewItemPrice(parseInt(e.target.value)||0)} 
+              disabled={loading}
+              className="bg-slate-800/50 border-white/10"
+            />
           </div>
-          <Button onClick={handleCreate} disabled={!newItemName.trim() || loading} className="bg-cyan-600 hover:bg-cyan-700 text-white h-10">
+          <Button 
+            onClick={handleCreate} 
+            disabled={!newItemName.trim() || loading} 
+            className="bg-cyan-600 hover:bg-cyan-700 text-white h-10"
+          >
             {loading ? 'Saving...' : <><Plus className="w-4 h-4 mr-2" /> Create</>}
           </Button>
         </div>
@@ -92,40 +128,98 @@ const ItemManager = ({ items, onRefresh }) => {
         <table className="w-full text-left">
           <thead className="bg-slate-800/50">
             <tr>
-              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Item</th>
-              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Prefix</th>
-              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Price</th>
-              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Actions</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase font-semibold">Item</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase font-semibold text-center">Prefix</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase font-semibold text-right">Price</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase font-semibold text-center">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-white/5">
             {Object.entries(items).map(([name, data]) => {
-              const prefix = typeof data === 'string' ? data : data?.prefix;
-              const price = typeof data === 'object' ? data?.price_cop : 10000;
+              const prefix = getPrefix(data);
+              const price = getPrice(data);
+              
               if (editingItem && editingItem.originalName === name) {
                 return (
-                  <tr key={name} className="border-b border-white/5 bg-slate-800/30">
-                    <td className="px-4 py-2"><Input value={editingItem.newName} onChange={e => setEditingItem({...editingItem, newName: e.target.value})} className="bg-slate-800" disabled={loading}/></td>
-                    <td className="px-4 py-2"><Input value={editingItem.newPrefix} onChange={e => setEditingItem({...editingItem, newPrefix: e.target.value.toUpperCase().slice(0,6)})} className="bg-slate-800 uppercase" maxLength={6} disabled={loading}/></td>
-                    <td className="px-4 py-2"><Input type="number" min="0" value={editingItem.newPrice ?? price} onChange={e => setEditingItem({...editingItem, newPrice: parseInt(e.target.value)||0})} className="bg-slate-800 w-24" disabled={loading}/></td>
+                  <tr key={name} className="bg-slate-800/30">
                     <td className="px-4 py-2">
-                      <div className="flex gap-2">
-                        <button onClick={handleUpdate} className="text-green-400 hover:text-green-300 p-1" disabled={loading}><Check className="w-4 h-4"/></button>
-                        <button onClick={() => setEditingItem(null)} className="text-slate-400 hover:text-white p-1" disabled={loading}><X className="w-4 h-4"/></button>
+                      <Input 
+                        value={editingItem.newName} 
+                        onChange={e => setEditingItem({...editingItem, newName: e.target.value})} 
+                        className="bg-slate-800 border-white/10"
+                        disabled={loading}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <Input 
+                        value={editingItem.newPrefix} 
+                        onChange={e => setEditingItem({...editingItem, newPrefix: e.target.value.toUpperCase().slice(0,6)})} 
+                        className="bg-slate-800 border-white/10 uppercase text-center"
+                        maxLength={6}
+                        disabled={loading}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        value={editingItem.newPrice ?? price} 
+                        onChange={e => setEditingItem({...editingItem, newPrice: parseInt(e.target.value)||0})} 
+                        className="bg-slate-800 border-white/10 text-right"
+                        disabled={loading}
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={handleUpdate} 
+                          className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded transition-colors"
+                          disabled={loading}
+                        >
+                          <Check className="w-4 h-4"/>
+                        </button>
+                        <button 
+                          onClick={() => setEditingItem(null)} 
+                          className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors"
+                          disabled={loading}
+                        >
+                          <X className="w-4 h-4"/>
+                        </button>
                       </div>
                     </td>
                   </tr>
                 );
               }
+              
               return (
-                <tr key={name} className="border-b border-white/5 hover:bg-white/5">
-                  <td className="px-4 py-3 text-white">{name}</td>
-                  <td className="px-4 py-3 text-slate-300 font-mono">{prefix || '-'}</td>
-                  <td className="px-4 py-3 text-slate-300">${price?.toLocaleString('es-CO')}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditingItem({originalName: name, newName: name, newPrefix: prefix||'', newPrice: price})} className="text-cyan-400 hover:text-cyan-300 p-1" disabled={loading}><Pencil className="w-4 h-4"/></button>
-                      <button onClick={() => setDeleteConfirm({isOpen: true, itemName: name})} className="text-red-400 hover:text-red-300 p-1" disabled={loading}><Trash2 className="w-4 h-4"/></button>
+                <tr key={name} className="hover:bg-white/5 transition-colors">
+                  <td className="px-4 py-3 text-white font-medium">{name}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-block px-2 py-1 rounded bg-slate-800 text-cyan-400 font-mono text-sm">
+                      {prefix}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="inline-block px-2 py-1 rounded bg-emerald-950/30 text-emerald-400 font-mono text-sm font-semibold">
+                      ${price.toLocaleString('es-CO')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button 
+                        onClick={() => setEditingItem({originalName: name, newName: name, newPrefix: prefix, newPrice: price})} 
+                        className="p-1.5 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded transition-colors"
+                        disabled={loading}
+                      >
+                        <Pencil className="w-4 h-4"/>
+                      </button>
+                      <button 
+                        onClick={() => setDeleteConfirm({isOpen: true, itemName: name})} 
+                        className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded transition-colors"
+                        disabled={loading}
+                      >
+                        <Trash2 className="w-4 h-4"/>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -134,8 +228,19 @@ const ItemManager = ({ items, onRefresh }) => {
           </tbody>
         </table>
       </div>
-      <ConfirmModal isOpen={deleteConfirm.isOpen} title="Delete Item" message={`Delete "${deleteConfirm.itemName}"?`} onConfirm={confirmDelete} onCancel={() => setDeleteConfirm({isOpen:false, itemName:''})} confirmText="Delete" variant="destructive" disabled={loading}/>
+      
+      <ConfirmModal 
+        isOpen={deleteConfirm.isOpen} 
+        title="Delete Item" 
+        message={`Delete "${deleteConfirm.itemName}"?`} 
+        onConfirm={confirmDelete} 
+        onCancel={() => setDeleteConfirm({isOpen:false, itemName:''})} 
+        confirmText="Delete" 
+        variant="destructive" 
+        disabled={loading}
+      />
     </div>
   );
 };
+
 export default ItemManager;

@@ -17,6 +17,8 @@ export const AdminActions = ({
   onAddLot,
   onToggleFilters,
   filteredAssets,
+  itemPrefixMap,
+  exchangeRate,
   onLogout,
   onChangePassword
 }) => {
@@ -46,7 +48,11 @@ export const AdminActions = ({
           >
             <Filter className="w-4 h-4 mr-2" /> Filter
           </Button>
-          <ExportMenu filteredAssets={filteredAssets} />
+          <ExportMenu 
+            filteredAssets={filteredAssets}
+            itemPrefixMap={itemPrefixMap}
+            exchangeRate={exchangeRate}
+          />
         </>
       )}
 

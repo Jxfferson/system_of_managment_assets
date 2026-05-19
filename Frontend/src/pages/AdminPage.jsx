@@ -762,6 +762,8 @@ const AdminPage = () => {
               onAddLot={() => setShowLotForm(true)}
               onToggleFilters={() => setShowFilters(prev => !prev)}
               filteredAssets={filteredAssets}
+              itemPrefixMap={itemPrefixMap} 
+              exchangeRate={exchangeRate}
               onLogout={handleLogout}
               onChangePassword={() => setShowChangePasswordModal(true)}
             />
