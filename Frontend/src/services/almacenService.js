@@ -67,6 +67,7 @@ const mapFromAPI = (item) => ({
   tipo_retorno: item.Tipo_Retorno || '',
   observaciones_retorno: item.Observaciones_Retorno || '',
   Sede_Actual: item.Sede_Actual || '',
+  Monitor_Location: item.Monitor_Location || '',
 });
 
 const mapToAPI = (asset) => ({
@@ -78,11 +79,18 @@ const mapToAPI = (asset) => ({
   Tipo_Retorno: asset.tipo_retorno || null,
   Observaciones_Retorno: asset.observaciones_retorno || null,
   Sede_Actual: asset.Sede_Actual || null, 
+  Monitor_Location: asset.Monitor_Location || null, 
 });
 
 
 export const getAssets = async (search = '') => {
   const url = search ? `${BASE}?search=${encodeURIComponent(search)}` : BASE;
+  const data = await secureFetch(url);
+  return data.map(mapFromAPI);
+};
+
+export const getAssetsByStation = async (stationName) => {
+  const url = `${BASE}?destino=${encodeURIComponent(stationName)}`;
   const data = await secureFetch(url);
   return data.map(mapFromAPI);
 };

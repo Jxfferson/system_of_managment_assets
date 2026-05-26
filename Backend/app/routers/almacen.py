@@ -14,9 +14,6 @@ router = APIRouter(prefix="/api/almacen", tags=["Almacen"])
 
 SEDES_PERMITIDAS = ["Connecta 80", "Caracol", "American BPS"]
 
-# =============================================================================
-# 🔹 MODELOS PYDANTIC
-# =============================================================================
 class ItemCreate(BaseModel):
     name: str
     serial_prefix: Optional[str] = None
@@ -45,10 +42,6 @@ class ItemResponseDB(BaseModel):
     class Config:
         from_attributes = True
 
-# =============================================================================
-# 🔹 RUTAS ESPECÍFICAS (SIEMPRE VAN ARRIBA DE LAS QUE TIENEN {id})
-# =============================================================================
-
 @router.get("/sedes", response_model=List[SedeResponse])
 def get_available_sedes():
     return [{"value": sede, "label": sede} for sede in SEDES_PERMITIDAS]
@@ -75,12 +68,10 @@ def get_available_items(db: Session = Depends(get_db)):
             prefix = "ITM"
             if serial:
                 match = re.match(r'^([A-Za-z]+)', serial)
-                if match:
-                    prefix = match.group(1).upper()
+                if match: prefix = match.group(1).upper()
             response_items.append({"name": item_name, "serial_prefix": prefix})
         return response_items
     except Exception as e:
-        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/items-list", response_model=List[ItemResponseDB])
@@ -94,13 +85,8 @@ def get_items_list(db: Session = Depends(get_db)):
 @router.post("/items", response_model=ItemResponseDB, status_code=201)
 def create_item(data: ItemCreateDB, db: Session = Depends(get_db)):
     existing = db.query(Item).filter(Item.name == data.name).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Item ya existe")
-    new_item = Item(
-        name=data.name.strip(),
-        prefix=data.prefix.strip().upper() if data.prefix else None,
-        price_cop=data.price_cop or 10000.0
-    )
+    if existing: raise HTTPException(status_code=400, detail="Item ya existe")
+    new_item = Item(name=data.name.strip(), prefix=data.prefix.strip().upper() if data.prefix else None, price_cop=data.price_cop or 10000.0)
     db.add(new_item)
     db.commit()
     db.refresh(new_item)
@@ -109,14 +95,10 @@ def create_item(data: ItemCreateDB, db: Session = Depends(get_db)):
 @router.put("/items/{item_name}", response_model=ItemResponseDB)
 def update_item(item_name: str, data: ItemUpdateDB, db: Session = Depends(get_db)):
     item = db.query(Item).filter(Item.name == item_name).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
-    if data.name:
-        item.name = data.name.strip()
-    if data.prefix is not None:
-        item.prefix = data.prefix.strip().upper() if data.prefix else None
-    if data.price_cop is not None:
-        item.price_cop = data.price_cop
+    if not item: raise HTTPException(status_code=404, detail="Item no encontrado")
+    if data.name: item.name = data.name.strip()
+    if data.prefix is not None: item.prefix = data.prefix.strip().upper() if data.prefix else None
+    if data.price_cop is not None: item.price_cop = data.price_cop
     db.commit()
     db.refresh(item)
     return item
@@ -124,20 +106,26 @@ def update_item(item_name: str, data: ItemUpdateDB, db: Session = Depends(get_db
 @router.delete("/items/{item_name}", status_code=200)
 def delete_item(item_name: str, db: Session = Depends(get_db)):
     item = db.query(Item).filter(Item.name == item_name).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+    if not item: raise HTTPException(status_code=404, detail="Item no encontrado")
     db.delete(item)
     db.commit()
     return {"message": "Eliminado correctamente"}
 
-# =============================================================================
-# 🔹 RUTAS DE ALMACÉN (GENÉRICAS Y CON PARÁMETROS {id} VAN AL FINAL)
-# =============================================================================
+
+
 
 @router.get("/", response_model=List[AlmacenResponse])
-def get_all(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def get_all(
+    search: Optional[str] = Query(None), 
+    destino: Optional[str] = Query(None),  
+    db: Session = Depends(get_db)
+):
     query = db.query(Almacen)
-    if search:
+    
+  
+    if destino:
+        query = query.filter(Almacen.Destino == destino)
+    elif search:
         term = f"%{search}%"
         query = query.filter(or_(
             Almacen.Item.like(term),
@@ -157,7 +145,8 @@ def create(data: AlmacenCreate, db: Session = Depends(get_db)):
         Destino=data.Destino,
         Tipo_Retorno=data.Tipo_Retorno,
         Observaciones_Retorno=data.Observaciones_Retorno,
-        Sede_Actual=data.Sede_Actual
+        Sede_Actual=data.Sede_Actual,
+        Monitor_Location=data.Monitor_Location
     )
     db.add(nuevo)
     db.commit()
@@ -189,7 +178,8 @@ def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
                 "Destino": item.Destino,
                 "Tipo_Retorno": item.Tipo_Retorno,
                 "Observaciones_Retorno": item.Observaciones_Retorno,
-                "Sede_Actual": item.Sede_Actual 
+                "Sede_Actual": item.Sede_Actual,
+                "Monitor_Location": item.Monitor_Location
             } for item in data.items
         ])
         db.commit()
@@ -201,18 +191,16 @@ def create_bulk(data: AlmacenBulkCreate, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{id}", response_model=AlmacenResponse)
+@router.get("/{id:int}", response_model=AlmacenResponse)
 def get_by_id(id: int, db: Session = Depends(get_db)):
     item = db.query(Almacen).filter(Almacen.ID == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="No encontrado")
+    if not item: raise HTTPException(status_code=404, detail="No encontrado")
     return item
 
-@router.put("/{id}", response_model=AlmacenResponse)
+@router.put("/{id:int}", response_model=AlmacenResponse)
 def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
     item = db.query(Almacen).filter(Almacen.ID == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+    if not item: raise HTTPException(status_code=404, detail="Item no encontrado")
     
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -220,13 +208,12 @@ def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
     
     db.commit()
     db.refresh(item)
-    return item 
+    return item
 
-@router.delete("/{id}")
+@router.delete("/{id:int}")
 def delete(id: int, db: Session = Depends(get_db)):
     item = db.query(Almacen).filter(Almacen.ID == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="No encontrado")
+    if not item: raise HTTPException(status_code=404, detail="No encontrado")
     db.delete(item)
     db.commit()
     return {"message": "Eliminado"}

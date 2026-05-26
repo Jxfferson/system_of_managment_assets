@@ -15,6 +15,7 @@ class AlmacenBase(BaseModel):
     Tipo_Retorno:           Optional[str] = None
     Observaciones_Retorno:  Optional[str] = None
     Sede_Actual:            Optional[str] = None 
+    Monitor_Location:       Optional[str] = None
     
     model_config = {"from_attributes": True}
 
@@ -39,6 +40,7 @@ class AlmacenUpdate(BaseModel):
     Tipo_Retorno:           Optional[str] = None
     Observaciones_Retorno:  Optional[str] = None
     Sede_Actual:            Optional[str] = None
+    Monitor_Location:       Optional[str] = None
     
     model_config = {"from_attributes": True}
 

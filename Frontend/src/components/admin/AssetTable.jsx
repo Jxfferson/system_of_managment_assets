@@ -1,9 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { Pencil, Trash2, Package, ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, X, FileText, Wrench, AlertCircle, HelpCircle, Building2 } from 'lucide-react';
+import { 
+  Pencil, Trash2, Package, ChevronLeft, ChevronRight, 
+  CheckSquare, Square, AlertTriangle, X, FileText, Wrench, 
+  AlertCircle, HelpCircle, Building2 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { escapeHtml } from '@/utils/sanitize';
+import StationDetailModal from './StationDetailModal';
 
 const ITEMS_PER_PAGE = 50;
+
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Eliminar", cancelText = "Cancelar", variant = "destructive" }) => {
   if (!isOpen) return null;
@@ -65,9 +71,11 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
   );
 };
 
-const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
+
+const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk, onRefresh }) => { 
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedStation, setSelectedStation] = useState(null); 
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
@@ -211,6 +219,14 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
         variant={confirmModal.variant}
       />
 
+
+      <StationDetailModal 
+        isOpen={!!selectedStation} 
+        stationName={selectedStation} 
+        onClose={() => setSelectedStation(null)} 
+        onRefresh={onRefresh} 
+      />
+
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-4">
         <h3 className="text-lg font-semibold text-white">Assets</h3>
         
@@ -237,7 +253,7 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left table-fixed min-w-[1400px]">
+        <table className="w-full text-left table-fixed min-w-[1500px]">
           <colgroup>
             <col className="w-10" />
             <col className="w-36" />
@@ -247,6 +263,7 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
             <col className="w-28" />
             <col className="w-36" />
             <col className="w-28" />
+            <col className="w-24" /> 
             <col className="w-32" />
             <col className="w-20" />
           </colgroup>
@@ -271,6 +288,7 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Return Type</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Observations</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Destination</th>
+              <th className="px-4 py-3 text-slate-400 text-xs uppercase">Monitor</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Current Headquarters</th>
               <th className="px-4 py-3 text-slate-400 text-xs uppercase">Actions</th>
             </tr>
@@ -343,14 +361,36 @@ const AssetTable = ({ assets, onEdit, onDelete, onDeleteBulk }) => {
                       <span className="text-slate-600">-</span>
                     )}
                   </td>
-                  
+
+               
                   <td className="px-4 py-3">
-                    <div 
-                      className="text-slate-300 text-xs truncate cursor-help"
-                      title={escapeHtml(asset.destino)}
-                    >
-                      {escapeHtml(asset.destino) || '-'}
-                    </div>
+                    {asset.destino ? (
+                      <button 
+                        onClick={() => setSelectedStation(asset.destino)}
+                        className="text-slate-300 text-xs truncate hover:text-cyan-400 transition-colors flex items-center gap-1.5 group w-full text-left"
+                        title="Ver activos de esta estación"
+                      >
+                        <span className="truncate">{escapeHtml(asset.destino)}</span>
+
+                      </button>
+                    ) : (
+                      <span className="text-slate-600 text-xs">-</span>
+                    )}
+                  </td>
+
+                
+                  <td className="px-4 py-3">
+                    {asset.Monitor_Location ? (
+                      <span className={`inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide border shadow-sm ${
+                        asset.Monitor_Location === 'Left'
+                          ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                          : 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                      }`}>
+                        {asset.Monitor_Location === 'Left' ? '⬅ Left Mon' : 'Right Mon ➡'}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 text-xs">-</span>
+                    )}
                   </td>
 
                   <td className="px-4 py-3">

@@ -202,6 +202,29 @@ const AssetForm = ({
           </Select>
         </div>
 
+        {(editingAsset.name?.toLowerCase().includes('cable') || 
+          editingAsset.name?.toLowerCase().includes('display') ||
+          editingAsset.name?.toLowerCase().includes('hdmi') ||
+          editingAsset.name?.toLowerCase().includes('vga')) && (
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Monitor Location
+            </label>
+            <Select
+              value={editingAsset.Monitor_Location || ''}
+              onChange={(e) => setEditingAsset({ 
+                ...editingAsset, 
+                Monitor_Location: e.target.value 
+              })}
+              className="bg-slate-800/50"
+            >
+              <option value="">N/A (Teclado/Mouse/etc.)</option>
+              <option value="Left">🟢 Left Screen</option>
+              <option value="Right">🔴 Right Screen</option>
+            </Select>
+          </div>
+        )}
+
         <div className={!canHaveReturnType ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Return Type {!canHaveReturnType && '(requires exit date + no destination)'}

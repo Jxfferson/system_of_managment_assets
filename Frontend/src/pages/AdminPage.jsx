@@ -60,7 +60,8 @@ const initialAsset = {
   id: null, name: '', serial: '',
   fecha_ingreso: '', fecha_salida: '', destino: '',
   tipo_retorno: '', observaciones_retorno: '',
-  Sede_Actual: ''
+  Sede_Actual: '',
+  Monitor_Location: '' 
 };
 
 const initialLotData = {
@@ -304,23 +305,20 @@ const AdminPage = () => {
         handleLogout();
         return;
       }
-      console.error("Polling error:", err);
     }
   }, [handleLogout]);
 
-  const fetchExchangeRate = useCallback(async () => {
+
+const fetchExchangeRate = useCallback(async () => {
   setRateLoading(true);
   try {
-    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
+    const response = await fetch('http://localhost:8000/api/almacen/trm-tiempo-real');
     const data = await response.json();
-    const copRate = data.rates.COP;
     
-    if (copRate) {
+    if (data.success && data.valor) {
+      const copRate = data.valor;
+      
+      
       if (exchangeRate !== null) {
         if (copRate > exchangeRate) setRateTrend('up');
         else if (copRate < exchangeRate) setRateTrend('down');
@@ -331,44 +329,21 @@ const AdminPage = () => {
       setLastUpdate(new Date());
       setRateError(false);
     } else {
-      console.error('No se encontró COP en la respuesta:', data);
+      
       setRateError(true);
     }
   } catch (error) {
-    console.error('Error API principal:', error);
     
-    try {
-      const fallbackResponse = await fetch('https://open.er-api.com/v6/latest/USD');
-      const fallbackData = await fallbackResponse.json();
-      const copRate = fallbackData.rates.COP;
-      
-      console.log('Tasa fallback:', copRate);
-      
-      if (copRate) {
-        if (exchangeRate !== null) {
-          if (copRate > exchangeRate) setRateTrend('up');
-          else if (copRate < exchangeRate) setRateTrend('down');
-          else setRateTrend('neutral');
-        }
-        setPreviousRate(exchangeRate);
-        setExchangeRate(copRate);
-        setLastUpdate(new Date());
-        setRateError(false);
-      } else {
-        setRateError(true);
-      }
-    } catch (fallbackError) {
-      console.error('Error API fallback:', fallbackError);
-      setRateError(true);
-    }
+    setRateError(true);
   } finally {
     setRateLoading(false);
   }
 }, [exchangeRate]);
 
+
   useEffect(() => {
     fetchExchangeRate();
-    const interval = setInterval(fetchExchangeRate, 20 * 1000);
+    const interval = setInterval(fetchExchangeRate, 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchExchangeRate]);
 
@@ -812,7 +787,7 @@ const AdminPage = () => {
                 onItemCreated={(name, prefix, price) => handleItemCreated(name, prefix, price)} 
               />
               <div className="overflow-x-auto -mx-3 sm:mx-0">
-                <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} />
+                <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} onRefresh={loadAssets} />
               </div>
             </>
           ) : activeTab === 'items' ? (
