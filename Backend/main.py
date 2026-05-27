@@ -1,20 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config.database import engine, Base
-from app.routers import almacen
-from app.routers import ticket_webhook
-import httpx
-from bs4 import BeautifulSoup
-import re
-from datetime import datetime
+from sqlalchemy.exc import OperationalError
+import logging
 
-Base.metadata.create_all(bind=engine)
+from app.config.database import Base, engine
+from app.routers import almacen, ticket_webhook, scanner
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="API InventarioColombiaIT",
     description="Sistema de Gestión de Activos",
     version="1.0.0",
 )
+
+
+@app.on_event("startup")
+def create_tables() -> None:
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Tablas de base de datos creadas/verificadas")
+    except OperationalError as exc:
+        logger.warning(f"⚠️ Skipping database initialization on startup: {exc}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,9 +33,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return {"message": "API InventarioColombiaIT funcionando correctamente"}
+
 @app.get("/api/almacen/trm-tiempo-real")
 async def get_trm_tiempo_real():
     """
@@ -69,5 +80,7 @@ async def get_trm_tiempo_real():
     except Exception as e:
         return {"error": str(e), "valor": 3700, "success": False}
 
+# 🔹 Incluir routers
 app.include_router(almacen.router)
 app.include_router(ticket_webhook.router)
+app.include_router(scanner.router)

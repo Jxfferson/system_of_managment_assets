@@ -25,7 +25,7 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
   const [newItem, setNewItem] = useState({
     name: '',
     serial: '',
-    fecha_ingreso: new Date().toISOString().split('T')[0],
+    fecha_salida: new Date().toISOString().split('T')[0],
     Monitor_Location: ''
   });
   const [availableItems, setAvailableItems] = useState([]);
@@ -187,21 +187,64 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
   };
 
   // Function: Add new item to station
-  const handleAddItem = async () => {
-    if (!newItem.name || !newItem.fecha_ingreso) {
-      toast({ title: "Error", description: "Item and Entry Date are required", variant: "destructive" });
-      return;
-    }
+const handleAddItem = async () => {
+  if (!newItem.name || !newItem.fecha_salida) {
+    toast({ title: "Error", description: "Item and Exit Date are required", variant: "destructive" });
+    return;
+  }
+  
+  const error = validateItemForStation();
+  if (error) {
+    setValidationError(error);
+    toast({ title: "Validation", description: error, variant: "destructive" });
+    return;
+  }
 
-    // Validate business rules
-    const error = validateItemForStation();
-    if (error) {
-      setValidationError(error);
-      toast({ title: "Validation", description: error, variant: "destructive" });
-      return;
-    }
 
-    // Generate serial automatically if empty
+    const availableInInventory = await getAssets(newItem.name)
+    .then(all => {
+        const available = all.filter(a => 
+        a.name === newItem.name && 
+        !a.destino && 
+        !a.fecha_salida
+        );
+        
+        available.sort((a, b) => {
+        const serialA = a.serial || '';
+        const serialB = b.serial || '';
+        return serialA.localeCompare(serialB, undefined, { numeric: true });
+        });
+        
+        return available;
+    })
+    .catch(() => []);
+
+    if (availableInInventory.length > 0) {
+    const assetToAssign = availableInInventory[0];
+    
+    const updated = {
+      ...assetToAssign,
+      fecha_salida: newItem.fecha_salida,  
+      destino: stationName,             
+      Monitor_Location: newItem.Monitor_Location || assetToAssign.Monitor_Location
+    };
+
+    try {
+      await updateAsset(updated);
+      toast({ 
+        title: "Item assigned", 
+        description: `${newItem.name} (${assetToAssign.serial}) assigned to ${stationName}` 
+      });
+      const updatedList = await getAssetsByStation(stationName);
+      setAssets(updatedList);
+      setShowAddForm(false);
+      setNewItem({ name: '', serial: '', fecha_salida: new Date().toISOString().split('T')[0], Monitor_Location: '' });
+      setValidationError('');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      toast({ title: "Error", description: err.message || "Could not assign item", variant: "destructive" });
+    }
+  } else {
     let finalSerial = newItem.serial;
     if (!finalSerial && itemPrefixes[newItem.name]) {
       const prefix = itemPrefixes[newItem.name];
@@ -211,8 +254,8 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     const payload = {
       name: newItem.name,
       serial: finalSerial,
-      fecha_ingreso: newItem.fecha_ingreso,
-      fecha_salida: newItem.fecha_ingreso, // IMPORTANT: When assigning, fecha_salida = assignment date
+      fecha_ingreso: newItem.fecha_salida,  
+      fecha_salida: newItem.fecha_salida,   
       destino: stationName,
       tipo_retorno: null,
       observaciones_retorno: null,
@@ -223,31 +266,29 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     try {
       await createAsset(payload);
       toast({ 
-        title: "Item added", 
-        description: `${newItem.name} (${finalSerial}) assigned to ${stationName}` 
+        title: "Item created", 
+        description: `${newItem.name} (${finalSerial}) created and assigned to ${stationName}` 
       });
-      // Reload list and refresh main table
-      const updated = await getAssetsByStation(stationName);
-      setAssets(updated);
+      const updatedList = await getAssetsByStation(stationName);
+      setAssets(updatedList);
       setShowAddForm(false);
-      setNewItem({ name: '', serial: '', fecha_ingreso: new Date().toISOString().split('T')[0], Monitor_Location: '' });
+      setNewItem({ name: '', serial: '', fecha_salida: new Date().toISOString().split('T')[0], Monitor_Location: '' });
       setValidationError('');
       if (onRefresh) onRefresh();
     } catch (err) {
-      // Handle duplicate serial error from backend
       if (err.message?.includes('serial') || err.message?.includes('Serial')) {
         toast({ 
           title: "Duplicate serial", 
           description: "This serial already exists. A new one will be generated automatically.", 
           variant: "destructive" 
         });
-        // Force recalc of serial and retry
         setNextSerial(prev => prev + 1);
         return;
       }
       toast({ title: "Error", description: err.message || "Could not add item", variant: "destructive" });
     }
-  };
+  }
+};
 
   // Icons based on item type
   const getItemIcon = (itemName) => {
@@ -355,11 +396,11 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
 
                 {/* Entry Date */}
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Entry Date *</label>
+                  <label className="block text-xs text-slate-400 mb-1">Exit Date *</label>
                   <input
                     type="date"
-                    value={newItem.fecha_ingreso}
-                    onChange={(e) => setNewItem({ ...newItem, fecha_ingreso: e.target.value })}
+                    value={newItem.fecha_salida}
+                    onChange={(e) => setNewItem({ ...newItem, fecha_salida: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
