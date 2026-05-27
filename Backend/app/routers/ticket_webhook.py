@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 from app.config.database import SessionLocal
 from app.models.almacen import Almacen
 import logging
-from typing import Optional  # ← AGREGAR ESTE IMPORT
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__) 
 
 router = APIRouter(prefix="/api", tags=["ticket-webhook"])
 
@@ -40,7 +41,7 @@ class TicketApprovalRequest(BaseModel):
     assetItem: str
     assetCondition: str
     description: str = ""
-    monitorLocation: Optional[str] = None  
+    monitorLocation: Optional[str] = None
 
 
 @router.post("/ticket-approved")
@@ -49,7 +50,7 @@ async def ticket_approved(
     x_api_token: str = Header(...)
 ):
     print(f"ENDPOINT /api/ticket-approved EJECUTADO")
-    
+
     monitor_location = request.monitorLocation
     if monitor_location is None or monitor_location == 'None' or monitor_location == '':
         monitor_location = None
@@ -57,50 +58,44 @@ async def ticket_approved(
     api_key = os.getenv("INVENTORY_API_KEY", "")
     if x_api_token != api_key:
         raise HTTPException(status_code=401, detail="No autorizado")
-    
+
     valid_conditions = ['Return', 'Damage', 'Missing']
     if request.assetCondition not in valid_conditions:
         raise HTTPException(status_code=400, detail="Asset condition no válido")
-    
+
     db: Session = SessionLocal()
-    
+
     try:
-        # Mostrar activos en esa estación
         todos_en_estacion = db.query(Almacen).filter(
             Almacen.Destino == request.deskLocation
         ).all()
         for a in todos_en_estacion:
             logger.info(f"   - ID:{a.ID} | Item:'{a.Item}' | Serial:{a.Serial} | Fecha_Salida:{a.Fecha_Salida} | Monitor:{a.Monitor_Location}")
-        
+
         query = db.query(Almacen).filter(
             Almacen.Item.ilike(f"%{request.assetItem.strip()}%"),
             Almacen.Destino == request.deskLocation.strip(),
             Almacen.Fecha_Salida == None
         )
-        
-    
+
         if monitor_location:  
-            query = query.filter(Almacen.Monitor_Location == monitor_location)
-        
+            query = query.filter(Almacen.Monitor_Location.ilike(f"%{monitor_location}%"))
 
         activo_retornado = query.first()
-        
-        # 🔹 Fallback 1: Si no encontró con filtro de monitor, buscar sin ese filtro
+
         if not activo_retornado and monitor_location:
             activo_retornado = db.query(Almacen).filter(
                 Almacen.Item.ilike(f"%{request.assetItem.strip()}%"),
                 Almacen.Destino == request.deskLocation.strip(),
                 Almacen.Fecha_Salida == None
             ).first()
-        
-        # 🔹 Fallback 2: Buscar incluso si tiene Fecha_Salida (último recurso)
+
         if not activo_retornado:
             activo_retornado = db.query(Almacen).filter(
                 Almacen.Item.ilike(f"%{request.assetItem.strip()}%"),
                 Almacen.Destino == request.deskLocation.strip()
             ).first()
-        
-        # 🔹 Fallback 3: Por componente (reverse map)
+
         if not activo_retornado and request.assetItem in _REVERSE_COMPONENT_MAP:
             component_key = _REVERSE_COMPONENT_MAP[request.assetItem]
             activo_retornado = db.query(Almacen).filter(
@@ -108,18 +103,18 @@ async def ticket_approved(
                 Almacen.Destino == request.deskLocation.strip(),
                 Almacen.Fecha_Salida == None
             ).first()
-            
+
             if monitor_location and activo_retornado:
-                if activo_retornado.Monitor_Location != monitor_location:
-                    activo_retornado = None  
-        
+                if activo_retornado.Monitor_Location and monitor_location.lower() not in activo_retornado.Monitor_Location.lower():
+                    activo_retornado = None
+
         if not activo_retornado:
             disponibles = [a for a in todos_en_estacion if a.Fecha_Salida is None]
             raise HTTPException(
-                status_code=404, 
+                status_code=404,
                 detail=f"No se encontró '{request.assetItem}' en {request.deskLocation}"
             )
-                
+
         item_tipo = activo_retornado.Item
         activo_retornado.Fecha_Salida = None
         activo_retornado.Destino = None
@@ -128,7 +123,7 @@ async def ticket_approved(
         activo_retornado.Sede_Actual = None
         db.commit()
         db.refresh(activo_retornado)
-        
+
         # Reemplazo automático
         replacement_asset = None
         if request.assetCondition in ['Damage', 'Missing']:
@@ -146,9 +141,9 @@ async def ticket_approved(
                 replacement_asset.Sede_Actual = None
                 db.commit()
                 db.refresh(replacement_asset)
-        
+
         db.commit()
-        
+
         response_data = {
             "success": True,
             "message": "Activo actualizado correctamente",
@@ -171,9 +166,9 @@ async def ticket_approved(
             }
         elif request.assetCondition in ['Damage', 'Missing']:
             response_data["warning"] = "No hay activo de reemplazo disponible"
-        
+
         return response_data
-        
+
     except HTTPException as he:
         db.rollback()
         logger.error(f"HTTPException: {he.detail}")
