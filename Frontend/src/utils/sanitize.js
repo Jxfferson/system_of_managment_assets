@@ -13,7 +13,6 @@ export const sanitizeString = (str) => {
     .slice(0, 1000);
 };
 
-// ✅ NUEVA: Permite espacios (para Observaciones, descripciones, etc.)
 export const sanitizeText = (str) => {
   if (!str || typeof str !== 'string') return '';
   
@@ -25,7 +24,6 @@ export const sanitizeText = (str) => {
     .replace(/on\w+=/gi, '')
     .replace(/expression\(/gi, '')
     .replace(/[\x00-\x1F\x7F]/g, '')
-    // .trim()  ← NO eliminamos espacios para texto largo
     .slice(0, 1000);
 };
 
