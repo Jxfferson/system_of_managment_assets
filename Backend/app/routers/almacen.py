@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, distinct, text
 from typing import List, Optional
+from datetime import datetime
 import re
 from pydantic import BaseModel
 
 from app.config.database import get_db
 from app.models.almacen import Almacen
 from app.models.item import Item 
-from app.schemas.almacen import AlmacenCreate, AlmacenUpdate, AlmacenResponse, SedeResponse
+from app.schemas.almacen import AlmacenCreate, AlmacenUpdate, AlmacenResponse, SedeResponse, StationHistoryResponse, StationHistoryFullItem
+from app.models.station_change_history import StationChangeHistory, ChangeType
 
 router = APIRouter(prefix="/api/almacen", tags=["Almacen"])
 
@@ -111,9 +113,6 @@ def delete_item(item_name: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Eliminado correctamente"}
 
-
-
-
 @router.get("/", response_model=List[AlmacenResponse])
 def get_all(
     search: Optional[str] = Query(None), 
@@ -122,7 +121,6 @@ def get_all(
 ):
     query = db.query(Almacen)
     
-  
     if destino:
         query = query.filter(Almacen.Destino == destino)
     elif search:
@@ -151,6 +149,16 @@ def create(data: AlmacenCreate, db: Session = Depends(get_db)):
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
+    
+    if data.Destino:
+        log_station_change(
+            db=db,
+            station_code=data.Destino,
+            change_type="ASSIGNED",
+            current_asset={"serial": nuevo.Serial, "name": nuevo.Item},
+            previous_asset=None
+        )
+    
     return nuevo
 
 @router.post("/bulk", status_code=201)
@@ -200,7 +208,12 @@ def get_by_id(id: int, db: Session = Depends(get_db)):
 @router.put("/{id:int}", response_model=AlmacenResponse)
 def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
     item = db.query(Almacen).filter(Almacen.ID == id).first()
-    if not item: raise HTTPException(status_code=404, detail="Item no encontrado")
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    
+    previous_station = item.Destino
+    previous_serial = item.Serial
+    previous_name = item.Item
     
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -208,6 +221,42 @@ def update(id: int, data: AlmacenUpdate, db: Session = Depends(get_db)):
     
     db.commit()
     db.refresh(item)
+    
+    if 'Destino' in update_data:
+        new_station = update_data['Destino']
+        
+        if new_station and not previous_station:
+            log_station_change(
+                db=db,
+                station_code=new_station,
+                change_type="ASSIGNED",
+                current_asset={"serial": item.Serial, "name": item.Item},
+                previous_asset=None
+            )
+        elif new_station and previous_station and new_station != previous_station:
+            log_station_change(
+                db=db,
+                station_code=new_station,
+                change_type="MOVED_TO",
+                current_asset={"serial": item.Serial, "name": item.Item},
+                previous_asset={"serial": previous_serial, "name": previous_name}
+            )
+            log_station_change(
+                db=db,
+                station_code=previous_station,
+                change_type="MOVED_FROM",
+                current_asset=None,
+                previous_asset={"serial": previous_serial, "name": previous_name}
+            )
+        elif previous_station and not new_station:
+            log_station_change(
+                db=db,
+                station_code=previous_station,
+                change_type="UNASSIGNED",
+                current_asset=None,
+                previous_asset={"serial": previous_serial, "name": previous_name}
+            )
+    
     return item
 
 @router.delete("/{id:int}")
@@ -217,3 +266,144 @@ def delete(id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"message": "Eliminado"}
+
+def log_station_change(db: Session, station_code: str, change_type: str, 
+                       current_asset: dict = None, previous_asset: dict = None,
+                       changed_by: int = None, ticket_id: int = None):
+    try:
+        db.add(StationChangeHistory(
+            station_code=station_code,
+            asset_serial=current_asset.get("serial") if current_asset else None,
+            asset_name=current_asset.get("name") if current_asset else None,
+            previous_asset_serial=previous_asset.get("serial") if previous_asset else None,
+            previous_asset_name=previous_asset.get("name") if previous_asset else None,
+            change_type=ChangeType(change_type),
+            changed_by=changed_by,
+            ticket_id=ticket_id
+        ))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Warning: Could not log station change: {e}")
+
+@router.get("/station/{station_code}/history", response_model=StationHistoryResponse)
+def get_station_history(station_code: str, db: Session = Depends(get_db)):
+    result = db.execute(
+        text("""
+            SELECT 
+                station_code,
+                asset_serial,
+                asset_name,
+                previous_asset_serial,
+                previous_asset_name,
+                change_type,
+                changed_at,
+                (SELECT COUNT(*) FROM station_change_history WHERE station_code = :code) as total_changes
+            FROM station_change_history
+            WHERE station_code = :code
+            ORDER BY changed_at DESC
+            LIMIT 1
+        """),
+        {"code": station_code}
+    ).fetchone()
+    
+    if not result:
+        return StationHistoryResponse(
+            station_code=station_code,
+            last_change_at=None,
+            last_change_type=None,
+            current_asset_serial=None,
+            current_asset_name=None,
+            previous_asset_serial=None,
+            previous_asset_name=None,
+            total_changes=0
+        )
+    
+    return StationHistoryResponse(
+        station_code=result.station_code,
+        last_change_at=result.changed_at.isoformat() if result.changed_at else None,
+        last_change_type=result.change_type,
+        current_asset_serial=result.asset_serial,
+        current_asset_name=result.asset_name,
+        previous_asset_serial=result.previous_asset_serial,
+        previous_asset_name=result.previous_asset_name,
+        total_changes=result.total_changes or 0
+    )
+
+@router.get("/station/{station_code}/history/full", response_model=List[StationHistoryFullItem])
+def get_full_station_history(station_code: str, db: Session = Depends(get_db)):
+    """Obtiene los últimos 50 cambios - Maneja IDs y nombres"""
+    results = db.execute(
+        text("""
+            SELECT 
+                h.id_change,
+                h.station_code,
+                h.asset_serial,
+                h.asset_name,
+                h.previous_asset_serial,
+                h.previous_asset_name,
+                h.change_type,
+                h.changed_at,
+                h.ticket_id,
+                h.reviewed_by,
+                h.approved_by,
+                h.asset_condition
+            FROM station_change_history h
+            WHERE h.station_code = :code
+            ORDER BY h.changed_at DESC
+            LIMIT 50
+        """),
+        {"code": station_code}
+    ).fetchall()
+    
+    def format_time_ago(dt):
+        if not dt:
+            return "N/A"
+        now = datetime.now()
+        diff = now - dt
+        
+        if diff.days >= 365:
+            years = diff.days // 365
+            return f"hace {years} año{'s' if years > 1 else ''}"
+        if diff.days >= 30:
+            months = diff.days // 30
+            return f"hace {months} mes{'es' if months > 1 else ''}"
+        if diff.days >= 7:
+            weeks = diff.days // 7
+            return f"hace {weeks} semana{'s' if weeks > 1 else ''}"
+        if diff.days >= 1:
+            return f"hace {diff.days} día{'s' if diff.days > 1 else ''}"
+        if diff.seconds >= 3600:
+            hours = diff.seconds // 3600
+            return f"hace {hours} hora{'s' if hours > 1 else ''}"
+        if diff.seconds >= 60:
+            minutes = diff.seconds // 60
+            return f"hace {minutes} minuto{'s' if minutes > 1 else ''}"
+        return "hace poco"
+    
+    def format_user_field(value):
+        """Convierte ID o nombre a string"""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value  # Ya es un nombre
+        return f"User #{value}"  # Es un ID numérico
+    
+    return [
+        {
+            "id_change": r.id_change,
+            "station_code": r.station_code,
+            "asset_serial": r.asset_serial,
+            "asset_name": r.asset_name,
+            "previous_asset_serial": r.previous_asset_serial,
+            "previous_asset_name": r.previous_asset_name,
+            "change_type": r.change_type,
+            "changed_at": r.changed_at.isoformat() if r.changed_at else None,
+            "ticket_id": r.ticket_id,
+            "time_ago": format_time_ago(r.changed_at),
+            "reviewed_by": format_user_field(r.reviewed_by),
+            "approved_by": format_user_field(r.approved_by),
+            "asset_condition": r.asset_condition
+        }
+        for r in results
+    ]

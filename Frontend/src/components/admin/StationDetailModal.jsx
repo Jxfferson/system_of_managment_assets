@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, Loader2, Monitor, Mouse, Keyboard, Cable, HardDrive, ArrowUpRight, Trash2, Plus, Save, AlertCircle } from 'lucide-react';
+import { X, Package, Loader2, Monitor, Mouse, Keyboard, Cable, HardDrive, ArrowUpRight, Trash2, Plus, Save, AlertCircle, Clock, History, Filter, User, Shield } from 'lucide-react';
 import { getAssetsByStation, updateAsset, createAsset, getAssets } from '@/services/almacenService';
 import { toast } from '@/components/ui/use-toast';
+import { formatRelativeTime } from '@/utils/timeFormatter';
 
-// Items that can only have 1 unit per station (no duplicates allowed)
 const UNIQUE_ITEMS_PER_STATION = [
   'teclado', 'keyboard', 'mouse', 
   'extension', 'conversor', 'ethernet'
 ];
 
-// Items that can have multiple units per station (e.g., cables for dual monitor setups)
 const ALLOW_DUPLICATES_ITEMS = [
   'cable', 'display', 'monitor', 'pantalla', 'hdmi', 'vga', 'lan'
 ];
@@ -19,8 +18,6 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [movingId, setMovingId] = useState(null);
   const [newDestino, setNewDestino] = useState('');
-  
-  // States for the "Add Item" form
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({
     name: '',
@@ -32,8 +29,14 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
   const [itemPrefixes, setItemPrefixes] = useState({});
   const [nextSerial, setNextSerial] = useState(1);
   const [validationError, setValidationError] = useState('');
+  
+  // History states
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [stationHistory, setStationHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [fullHistory, setFullHistory] = useState([]);
+  const [selectedAssetFilter, setSelectedAssetFilter] = useState('');
 
-  // Load assets for the station
   useEffect(() => {
     if (isOpen && stationName) {
       setLoading(true);
@@ -51,7 +54,32 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     }
   }, [isOpen, stationName]);
 
-  // Load available items list for the form
+  useEffect(() => {
+    if (isOpen && stationName && showHistoryModal) {
+      setLoadingHistory(true);
+      
+      Promise.all([
+        fetch(`http://localhost:8000/api/almacen/station/${stationName}/history`).then(res => res.json()),
+        fetch(`http://localhost:8000/api/almacen/station/${stationName}/history/full`).then(res => res.json())
+      ])
+        .then(([summary, full]) => {
+          setStationHistory(summary);
+          setFullHistory(Array.isArray(full) ? full : []);
+        })
+        .catch(err => {
+          console.error('Error loading history:', err);
+          setStationHistory(null);
+          setFullHistory([]);
+          toast({ 
+            title: "Error", 
+            description: "Could not load station history", 
+            variant: "destructive" 
+          });
+        })
+        .finally(() => setLoadingHistory(false));
+    }
+  }, [isOpen, stationName, showHistoryModal]);
+
   useEffect(() => {
     if (showAddForm && stationName) {
       fetch('http://localhost:8000/api/almacen/items-list')
@@ -67,29 +95,23 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     }
   }, [showAddForm, stationName]);
 
-  // Calculate next serial by finding the FIRST available gap
-  // Only counts items that are IN USE (have fecha_salida AND destino)
   useEffect(() => {
     if (newItem.name && itemPrefixes[newItem.name]) {
       const prefix = itemPrefixes[newItem.name];
       
-      // Fetch ALL assets with this prefix from the entire database
       getAssets(prefix)
         .then(allAssets => {
-          // Filter only items that are IN USE (have fecha_salida AND destino)
           const inUseAssets = allAssets.filter(a => {
             if (!a.serial || !a.fecha_salida || !a.destino) return false;
             const regex = new RegExp(`^${prefix}(\\d+)$`);
             return regex.test(a.serial);
           });
           
-          // Extract all numbers from in-use items
           const existingNumbers = inUseAssets.map(a => {
             const match = a.serial.match(new RegExp(`^${prefix}(\\d+)$`));
             return match ? parseInt(match[1], 10) : null;
           }).filter(n => n !== null && !isNaN(n));
           
-          // Find the FIRST available gap
           let nextAvailable = 1;
           const sortedNumbers = existingNumbers.sort((a, b) => a - b);
           
@@ -97,7 +119,6 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
             if (sortedNumbers[i] === nextAvailable) {
               nextAvailable++;
             } else if (sortedNumbers[i] > nextAvailable) {
-              // Found a gap
               break;
             }
           }
@@ -112,19 +133,15 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     }
   }, [newItem.name, itemPrefixes]);
 
-  // Validate if this item can be added to the station
   const validateItemForStation = () => {
     if (!newItem.name || !stationName) return null;
     
     const itemNameLower = newItem.name.toLowerCase();
-    
-    // Check if it's a unique item per station
     const isUniqueItem = UNIQUE_ITEMS_PER_STATION.some(keyword => 
       itemNameLower.includes(keyword)
     );
     
     if (isUniqueItem) {
-      // Check if this type of item already exists at this station
       const alreadyExists = assets.some(a => 
         a.name.toLowerCase() === newItem.name.toLowerCase() && 
         a.destino === stationName
@@ -135,7 +152,6 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
       }
     }
     
-    // For cables/monitors, check if one with the same Monitor_Location already exists
     const isCableItem = ALLOW_DUPLICATES_ITEMS.some(keyword => 
       itemNameLower.includes(keyword)
     );
@@ -152,10 +168,9 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
       }
     }
     
-    return null; // No errors
+    return null;
   };
 
-  // Function: Unassign asset
   const handleUnassign = async (asset) => {
     if (!confirm(`Unassign ${asset.name} (${asset.serial}) from ${stationName}?`)) return;
     try {
@@ -168,7 +183,6 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     }
   };
 
-  // Function: Move asset
   const handleMove = async (asset) => {
     if (!newDestino.trim()) {
       toast({ title: "Attention", description: "Please enter the new station name", variant: "destructive" });
@@ -186,111 +200,105 @@ const StationDetailModal = ({ isOpen, stationName, onClose, onRefresh }) => {
     }
   };
 
-  // Function: Add new item to station
-const handleAddItem = async () => {
-  if (!newItem.name || !newItem.fecha_salida) {
-    toast({ title: "Error", description: "Item and Exit Date are required", variant: "destructive" });
-    return;
-  }
-  
-  const error = validateItemForStation();
-  if (error) {
-    setValidationError(error);
-    toast({ title: "Validation", description: error, variant: "destructive" });
-    return;
-  }
-
+  const handleAddItem = async () => {
+    if (!newItem.name || !newItem.fecha_salida) {
+      toast({ title: "Error", description: "Item and Exit Date are required", variant: "destructive" });
+      return;
+    }
+    
+    const error = validateItemForStation();
+    if (error) {
+      setValidationError(error);
+      toast({ title: "Validation", description: error, variant: "destructive" });
+      return;
+    }
 
     const availableInInventory = await getAssets(newItem.name)
-    .then(all => {
+      .then(all => {
         const available = all.filter(a => 
-        a.name === newItem.name && 
-        !a.destino && 
-        !a.fecha_salida
+          a.name === newItem.name && 
+          !a.destino && 
+          !a.fecha_salida
         );
-        
         available.sort((a, b) => {
-        const serialA = a.serial || '';
-        const serialB = b.serial || '';
-        return serialA.localeCompare(serialB, undefined, { numeric: true });
+          const serialA = a.serial || '';
+          const serialB = b.serial || '';
+          return serialA.localeCompare(serialB, undefined, { numeric: true });
         });
-        
         return available;
-    })
-    .catch(() => []);
+      })
+      .catch(() => []);
 
     if (availableInInventory.length > 0) {
-    const assetToAssign = availableInInventory[0];
-    
-    const updated = {
-      ...assetToAssign,
-      fecha_salida: newItem.fecha_salida,  
-      destino: stationName,             
-      Monitor_Location: newItem.Monitor_Location || assetToAssign.Monitor_Location
-    };
+      const assetToAssign = availableInInventory[0];
+      const updated = {
+        ...assetToAssign,
+        fecha_salida: newItem.fecha_salida,  
+        destino: stationName,             
+        Monitor_Location: newItem.Monitor_Location || assetToAssign.Monitor_Location
+      };
 
-    try {
-      await updateAsset(updated);
-      toast({ 
-        title: "Item assigned", 
-        description: `${newItem.name} (${assetToAssign.serial}) assigned to ${stationName}` 
-      });
-      const updatedList = await getAssetsByStation(stationName);
-      setAssets(updatedList);
-      setShowAddForm(false);
-      setNewItem({ name: '', serial: '', fecha_salida: new Date().toISOString().split('T')[0], Monitor_Location: '' });
-      setValidationError('');
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      toast({ title: "Error", description: err.message || "Could not assign item", variant: "destructive" });
-    }
-  } else {
-    let finalSerial = newItem.serial;
-    if (!finalSerial && itemPrefixes[newItem.name]) {
-      const prefix = itemPrefixes[newItem.name];
-      finalSerial = `${prefix}${String(nextSerial).padStart(5, '0')}`;
-    }
-
-    const payload = {
-      name: newItem.name,
-      serial: finalSerial,
-      fecha_ingreso: newItem.fecha_salida,  
-      fecha_salida: newItem.fecha_salida,   
-      destino: stationName,
-      tipo_retorno: null,
-      observaciones_retorno: null,
-      Sede_Actual: null,
-      Monitor_Location: newItem.Monitor_Location || null
-    };
-
-    try {
-      await createAsset(payload);
-      toast({ 
-        title: "Item created", 
-        description: `${newItem.name} (${finalSerial}) created and assigned to ${stationName}` 
-      });
-      const updatedList = await getAssetsByStation(stationName);
-      setAssets(updatedList);
-      setShowAddForm(false);
-      setNewItem({ name: '', serial: '', fecha_salida: new Date().toISOString().split('T')[0], Monitor_Location: '' });
-      setValidationError('');
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      if (err.message?.includes('serial') || err.message?.includes('Serial')) {
+      try {
+        await updateAsset(updated);
         toast({ 
-          title: "Duplicate serial", 
-          description: "This serial already exists. A new one will be generated automatically.", 
-          variant: "destructive" 
+          title: "Item assigned", 
+          description: `${newItem.name} (${assetToAssign.serial}) assigned to ${stationName}` 
         });
-        setNextSerial(prev => prev + 1);
-        return;
+        const updatedList = await getAssetsByStation(stationName);
+        setAssets(updatedList);
+        setShowAddForm(false);
+        setNewItem({ name: '', serial: '', fecha_salida: new Date().toISOString().split('T')[0], Monitor_Location: '' });
+        setValidationError('');
+        if (onRefresh) onRefresh();
+      } catch (err) {
+        toast({ title: "Error", description: err.message || "Could not assign item", variant: "destructive" });
       }
-      toast({ title: "Error", description: err.message || "Could not add item", variant: "destructive" });
-    }
-  }
-};
+    } else {
+      let finalSerial = newItem.serial;
+      if (!finalSerial && itemPrefixes[newItem.name]) {
+        const prefix = itemPrefixes[newItem.name];
+        finalSerial = `${prefix}${String(nextSerial).padStart(5, '0')}`;
+      }
 
-  // Icons based on item type
+      const payload = {
+        name: newItem.name,
+        serial: finalSerial,
+        fecha_ingreso: newItem.fecha_salida,  
+        fecha_salida: newItem.fecha_salida,   
+        destino: stationName,
+        tipo_retorno: null,
+        observaciones_retorno: null,
+        Sede_Actual: null,
+        Monitor_Location: newItem.Monitor_Location || null
+      };
+
+      try {
+        await createAsset(payload);
+        toast({ 
+          title: "Item created", 
+          description: `${newItem.name} (${finalSerial}) created and assigned to ${stationName}` 
+        });
+        const updatedList = await getAssetsByStation(stationName);
+        setAssets(updatedList);
+        setShowAddForm(false);
+        setNewItem({ name: '', serial: '', fecha_salida: new Date().toISOString().split('T')[0], Monitor_Location: '' });
+        setValidationError('');
+        if (onRefresh) onRefresh();
+      } catch (err) {
+        if (err.message?.includes('serial') || err.message?.includes('Serial')) {
+          toast({ 
+            title: "Duplicate serial", 
+            description: "This serial already exists. A new one will be generated automatically.", 
+            variant: "destructive" 
+          });
+          setNextSerial(prev => prev + 1);
+          return;
+        }
+        toast({ title: "Error", description: err.message || "Could not add item", variant: "destructive" });
+      }
+    }
+  };
+
   const getItemIcon = (itemName) => {
     const name = itemName.toLowerCase();
     if (name.includes('monitor') || name.includes('pantalla')) return <Monitor className="w-5 h-5 text-cyan-400" />;
@@ -301,13 +309,52 @@ const handleAddItem = async () => {
     return <Package className="w-5 h-5 text-slate-400" />;
   };
 
+  const getChangeTypeBadge = (type) => {
+    const badges = {
+      'ASSIGNED': { color: 'bg-green-500/20 text-green-300 border-green-500/30', label: 'Assigned' },
+      'UNASSIGNED': { color: 'bg-red-500/20 text-red-300 border-red-500/30', label: 'Unassigned' },
+      'MOVED_TO': { color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', label: 'Moved To' },
+      'MOVED_FROM': { color: 'bg-orange-500/20 text-orange-300 border-orange-500/30', label: 'Moved From' }
+    };
+    return badges[type] || { color: 'bg-slate-500/20 text-slate-300 border-slate-500/30', label: type };
+  };
+
+  // NUEVA FUNCIÓN: Badge para condición del activo
+  const getConditionBadge = (condition) => {
+    if (!condition) return null;
+    const badges = {
+      'Return': { color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', label: 'Return' },
+      'Damage': { color: 'bg-red-500/20 text-red-300 border-red-500/30', label: 'Damage' },
+      'Missing': { color: 'bg-orange-500/20 text-orange-300 border-orange-500/30', label: 'Missing' }
+    };
+    return badges[condition] || { color: 'bg-slate-500/20 text-slate-300 border-slate-500/30', label: condition };
+  };
+
+  // FILTRO CORREGIDO: Busca por serial O por nombre del activo
+  const filteredHistory = selectedAssetFilter 
+    ? (fullHistory || []).filter(h => {
+        // Buscar el activo seleccionado en la lista actual
+        const selectedAsset = assets.find(a => a.serial === selectedAssetFilter);
+        const selectedName = selectedAsset?.name?.toLowerCase() || '';
+        
+        // Coincidencia por serial
+        const serialMatch = h.asset_serial === selectedAssetFilter || 
+                           h.previous_asset_serial === selectedAssetFilter;
+        
+        // Coincidencia por nombre del activo
+        const nameMatch = (h.asset_name && h.asset_name.toLowerCase().includes(selectedName)) ||
+                         (h.previous_asset_name && h.previous_asset_name.toLowerCase().includes(selectedName));
+        
+        return serialMatch || nameMatch;
+      })
+    : (fullHistory || []);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* Header */}
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-cyan-950/50 to-blue-950/50">
           <div>
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -317,7 +364,14 @@ const handleAddItem = async () => {
             <p className="text-xs text-cyan-400 font-mono mt-1">{stationName}</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* "+" button to add item */}
+            <button 
+              onClick={() => setShowHistoryModal(true)}
+              className="p-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors"
+              title="View station change history"
+            >
+              <History className="w-5 h-5" />
+            </button>
+            
             {!showAddForm && (
               <button 
                 onClick={() => setShowAddForm(true)}
@@ -327,6 +381,7 @@ const handleAddItem = async () => {
                 <Plus className="w-5 h-5" />
               </button>
             )}
+            
             <button 
               onClick={onClose} 
               className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
@@ -336,10 +391,8 @@ const handleAddItem = async () => {
           </div>
         </div>
 
-        {/* Content */}
         <div className="p-6 overflow-y-auto flex-1">
           
-          {/* ADD ITEM FORM */}
           {showAddForm ? (
             <div className="space-y-4 mb-6 p-4 bg-slate-800/40 rounded-xl border border-cyan-500/30">
               <div className="flex items-center justify-between">
@@ -352,7 +405,6 @@ const handleAddItem = async () => {
                 </button>
               </div>
               
-              {/* Validation message */}
               {validationError && (
                 <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -361,7 +413,6 @@ const handleAddItem = async () => {
               )}
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Item Selector */}
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Item *</label>
                   <select
@@ -379,7 +430,6 @@ const handleAddItem = async () => {
                   </select>
                 </div>
 
-                {/* Serial (READ-ONLY - auto-generated) */}
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Serial</label>
                   <input
@@ -389,12 +439,9 @@ const handleAddItem = async () => {
                     placeholder="Auto-generated"
                     className="w-full bg-slate-800/50 border border-slate-600 rounded px-3 py-2 text-sm text-white font-mono cursor-not-allowed"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Auto-generated (not editable)
-                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">Auto-generated (not editable)</p>
                 </div>
 
-                {/* Entry Date */}
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Exit Date *</label>
                   <input
@@ -405,7 +452,6 @@ const handleAddItem = async () => {
                   />
                 </div>
 
-                {/* Monitor Location (only for cables/monitors) */}
                 {(newItem.name?.toLowerCase().includes('cable') || 
                   newItem.name?.toLowerCase().includes('display') ||
                   newItem.name?.toLowerCase().includes('monitor') ||
@@ -428,7 +474,6 @@ const handleAddItem = async () => {
                 )}
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
                 <button 
                   onClick={() => { setShowAddForm(false); setValidationError(''); }}
@@ -448,7 +493,6 @@ const handleAddItem = async () => {
             </div>
           ) : null}
 
-          {/* Assets list */}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mb-3" />
@@ -534,7 +578,255 @@ const handleAddItem = async () => {
           )}
         </div>
         
-        {/* Footer */}
+        {showHistoryModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+              
+              <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-purple-950/50 to-blue-950/50">
+                <div>
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <History className="w-5 h-5 text-purple-400" />
+                    Station Change History
+                  </h3>
+                  <p className="text-xs text-purple-400 font-mono mt-1">{stationName}</p>
+                </div>
+                <button 
+                  onClick={() => { setShowHistoryModal(false); setSelectedAssetFilter(''); }}
+                  className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1">
+                {loadingHistory ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="w-10 h-10 text-purple-400 animate-spin mb-3" />
+                    <p className="text-slate-400 text-sm">Loading history...</p>
+                  </div>
+                ) : stationHistory && stationHistory.total_changes > 0 ? (
+                  <div className="space-y-6">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <History className="w-8 h-8 text-purple-400" />
+                          <div>
+                            <p className="text-slate-400 text-xs">Total Changes</p>
+                            <p className="text-2xl font-bold text-white">{stationHistory.total_changes}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <Clock className="w-8 h-8 text-cyan-400" />
+                          <div>
+                            <p className="text-slate-400 text-xs">Last Change</p>
+                            <p className="text-sm font-bold text-white">{formatRelativeTime(stationHistory.last_change_at)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <Package className="w-8 h-8 text-emerald-400" />
+                          <div>
+                            <p className="text-slate-400 text-xs">Current Asset</p>
+                            <p className="text-sm font-bold text-white truncate max-w-[150px]">{stationHistory.current_asset_name || 'N/A'}</p>
+                            {stationHistory.current_asset_serial && (
+                              <p className="text-xs text-slate-500 font-mono">{stationHistory.current_asset_serial}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Last Change Details */}
+                    <div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl">
+                      <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-cyan-400" />
+                        Last Change Details
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+                        <div>
+                          <p className="text-slate-400 text-xs mb-1">Change Type</p>
+                          <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-semibold border ${getChangeTypeBadge(stationHistory.last_change_type).color}`}>
+                            {getChangeTypeBadge(stationHistory.last_change_type).label}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 text-xs mb-1">Changed At</p>
+                          <p className="text-white font-medium">
+                            {stationHistory.last_change_at ? new Date(stationHistory.last_change_at).toLocaleString() : 'N/A'}
+                          </p>
+                        </div>
+                        
+                        {stationHistory.previous_asset_name ? (
+                          <>
+                            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                              <p className="text-red-400 text-xs font-semibold mb-1">Previous Asset</p>
+                              <p className="text-white font-medium">{stationHistory.previous_asset_name}</p>
+                              <p className="text-slate-400 font-mono text-xs">{stationHistory.previous_asset_serial}</p>
+                            </div>
+                            <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                              <p className="text-green-400 text-xs font-semibold mb-1">Current Asset</p>
+                              <p className="text-white font-medium">{stationHistory.current_asset_name}</p>
+                              <p className="text-slate-400 font-mono text-xs">{stationHistory.current_asset_serial}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="sm:col-span-2 p-3 bg-slate-700/30 border border-slate-600/30 rounded-lg">
+                            <p className="text-slate-300 font-medium">{stationHistory.current_asset_name}</p>
+                            <p className="text-slate-500 font-mono text-xs">{stationHistory.current_asset_serial}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                   {/* Recent Changes List */}
+<div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl">
+  <div className="flex items-center justify-between mb-4">
+    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+      <History className="w-4 h-4 text-purple-400" />
+      Recent Changes (Last 10)
+    </h4>
+    
+    {/* Filter by Asset */}
+    {assets.length > 0 && (
+      <div className="flex items-center gap-2">
+        <Filter className="w-4 h-4 text-slate-400" />
+        <select
+          value={selectedAssetFilter}
+          onChange={(e) => setSelectedAssetFilter(e.target.value)}
+          className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:border-purple-500 focus:outline-none"
+        >
+          <option value="">All Assets</option>
+          {assets.map(asset => (
+            <option key={asset.id} value={asset.serial}>
+              {asset.name} ({asset.serial})
+            </option>
+          ))}
+        </select>
+      </div>
+    )}
+  </div>
+
+  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+    {filteredHistory && filteredHistory.length > 0 ? (
+      filteredHistory.slice(0, 10).map((change) => {
+        const badge = getChangeTypeBadge(change.change_type);
+        const conditionBadge = getConditionBadge(change.asset_condition);
+        
+        return (
+          <div 
+            key={change.id_change}
+            className="p-4 bg-slate-900/60 border border-slate-700/40 rounded-xl hover:border-purple-500/40 transition-all"
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${badge.color}`}>
+                  {badge.label}
+                </span>
+                {conditionBadge && (
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${conditionBadge.color}`}>
+                    {conditionBadge.label}
+                  </span>
+                )}
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {change.time_ago}
+                </span>
+                {change.ticket_id && (
+                  <span className="text-[10px] text-cyan-400 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                    Ticket #{change.ticket_id}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Seriales */}
+            <div className="text-xs mb-3 pb-3 border-b border-slate-700/50">
+              {change.previous_asset_serial ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400 font-mono font-semibold">{change.previous_asset_serial}</span>
+                  <ArrowUpRight className="w-3 h-3 text-slate-500" />
+                  <span className="text-green-400 font-mono font-semibold">{change.asset_serial}</span>
+                </div>
+              ) : (
+                <div className="text-green-400 font-mono font-semibold">
+                  {change.asset_serial}
+                </div>
+              )}
+            </div>
+            
+            {/* Usuarios: Escaló y Aprobó */}
+            {(change.reviewed_by || change.approved_by) && (
+              <div className="flex items-center gap-4 text-[11px] flex-wrap">
+                {change.reviewed_by && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                    <User className="w-3.5 h-3.5 text-blue-400" />
+                    <div className="flex flex-col">
+                      <span className="text-blue-400 font-semibold text-[10px] uppercase tracking-wide">Escaló</span>
+                      <span className="text-blue-300 font-medium">{change.reviewed_by}</span>
+                    </div>
+                  </div>
+                )}
+                {change.approved_by && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded-md">
+                    <Shield className="w-3.5 h-3.5 text-green-400" />
+                    <div className="flex flex-col">
+                      <span className="text-green-400 font-semibold text-[10px] uppercase tracking-wide">Aprobó</span>
+                      <span className="text-green-300 font-medium">{change.approved_by}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Si no hay usuarios, mostrar mensaje */}
+            {!change.reviewed_by && !change.approved_by && (
+              <p className="text-xs text-slate-500 italic">Sin información de usuarios</p>
+            )}
+          </div>
+        );
+      })
+    ) : (
+      <div className="text-center py-8">
+        <History className="w-12 h-12 text-slate-600 mx-auto mb-2" />
+        <p className="text-slate-500 text-sm">
+          {selectedAssetFilter ? 'No changes found for this asset' : 'No recent changes'}
+        </p>
+      </div>
+    )}
+  </div>
+</div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800/50 mb-4">
+                      <History className="w-8 h-8 text-slate-600" />
+                    </div>
+                    <p className="text-slate-400">No change history for this station yet</p>
+                    <p className="text-slate-500 text-sm mt-1">
+                      Changes will be recorded when assets are assigned, moved, or unassigned
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="px-6 py-4 bg-slate-800/30 border-t border-white/5 flex justify-end">
+                <button 
+                  onClick={() => { setShowHistoryModal(false); setSelectedAssetFilter(''); }}
+                  className="px-6 py-2.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="px-6 py-4 bg-slate-800/30 border-t border-white/5 flex justify-end">
           <button 
             onClick={onClose}

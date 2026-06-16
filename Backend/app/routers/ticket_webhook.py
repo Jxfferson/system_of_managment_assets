@@ -5,6 +5,7 @@ import os
 from sqlalchemy.orm import Session
 from app.config.database import SessionLocal
 from app.models.almacen import Almacen
+from app.models.station_change_history import StationChangeHistory, ChangeType
 import logging
 from typing import Optional
 
@@ -42,6 +43,8 @@ class TicketApprovalRequest(BaseModel):
     assetCondition: str
     description: str = ""
     monitorLocation: Optional[str] = None
+    reviewedBy: Optional[str] = None
+    approvedBy: Optional[str] = None 
 
 
 @router.post("/ticket-approved")
@@ -123,6 +126,42 @@ async def ticket_approved(
         activo_retornado.Sede_Actual = None
         db.commit()
         db.refresh(activo_retornado)
+
+        try:
+            prev_record = db.query(Almacen).filter(
+                Almacen.Destino == request.deskLocation,
+                Almacen.Item.ilike(f"%{request.assetItem.strip()}%"),
+                Almacen.Fecha_Salida.isnot(None)
+            ).order_by(Almacen.Fecha_Salida.desc()).first()
+            
+            prev_serial = prev_record.Serial if prev_record else None
+            prev_name = prev_record.Item if prev_record else None
+
+            change_type = ChangeType.ASSIGNED
+            if request.assetCondition == 'Damage':
+                change_type = ChangeType.MOVED_TO
+            elif request.assetCondition == 'Missing':
+                change_type = ChangeType.UNASSIGNED
+            
+            db.add(StationChangeHistory(
+                station_code=request.deskLocation,
+                asset_serial=activo_retornado.Serial,
+                asset_name=activo_retornado.Item,
+                previous_asset_serial=prev_serial,
+                previous_asset_name=prev_name,
+                change_type=change_type,
+                ticket_id=int(request.ticketId),
+                reviewed_by=request.reviewedBy,
+                approved_by=request.approvedBy, 
+                asset_condition=request.assetCondition  
+            ))
+            db.commit()
+            print(f"Station history logged: {request.deskLocation} - {activo_retornado.Serial}")
+            print(f"   Reviewed by: {request.reviewedBy}, Approved by: {request.approvedBy}")
+            print(f"   Condition: {request.assetCondition}")
+        except Exception as e:
+            db.rollback()
+            print(f"Warning: Could not log station history: {e}")
 
         # Reemplazo automático
         replacement_asset = None
