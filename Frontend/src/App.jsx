@@ -57,9 +57,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/admin" replace />} />
           <Route path="/admin" element={<AdminPage />} />
-          
           <Route path="/admin/statistics" element={<AdminPage />} />
-          
+          <Route path="/admin/analytics" element={<AdminPage />} />
           <Route path="/admin/items/:itemName" element={<ItemDetailPage />} />
         </Routes>
       </div>

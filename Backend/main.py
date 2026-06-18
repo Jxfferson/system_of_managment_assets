@@ -4,14 +4,13 @@ from sqlalchemy.exc import OperationalError
 import logging
 
 from app.config.database import Base, engine
-from app.routers import almacen, ticket_webhook, scanner
+from app.routers import almacen, ticket_webhook, scanner, analytics
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="API InventarioColombiaIT",
+    title="OTD Inventory Management",
     description="Sistema de Gestión de Activos",
     version="1.0.0",
 )
@@ -21,9 +20,9 @@ app = FastAPI(
 def create_tables() -> None:
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Tablas de base de datos creadas/verificadas")
+        logger.info("Tablas de base de datos creadas/verificadas")
     except OperationalError as exc:
-        logger.warning(f"⚠️ Skipping database initialization on startup: {exc}")
+        logger.warning(f"Skipping database initialization on startup: {exc}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +40,7 @@ def root():
 @app.get("/api/almacen/trm-tiempo-real")
 async def get_trm_tiempo_real():
     """
-    Obtiene USD/COP usando SOLO APIs confiables (sin scraping).
+    Obtiene Uusd y cop (sin scraping).
     """
     import httpx
     from datetime import datetime
@@ -49,7 +48,7 @@ async def get_trm_tiempo_real():
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             
-            # 🔹 API 1: Exchangerate-API (Funciona 100%)
+            # API 1: Exchangerate-API (Funciona 100%)
             res = await client.get("https://api.exchangerate-api.com/v4/latest/USD")
             if res.status_code == 200:
                 data = res.json()
@@ -62,7 +61,7 @@ async def get_trm_tiempo_real():
                         "timestamp": datetime.now().isoformat()
                     }
             
-            # 🔹 API 2: Fallback (Open Exchange Rates)
+            # API 2: Fallback (Open Exchange Rates)
             res2 = await client.get("https://open.er-api.com/v6/latest/USD")
             if res2.status_code == 200:
                 data2 = res2.json()
@@ -80,7 +79,8 @@ async def get_trm_tiempo_real():
     except Exception as e:
         return {"error": str(e), "valor": 3700, "success": False}
 
-# 🔹 Incluir routers
+# routers
 app.include_router(almacen.router)
 app.include_router(ticket_webhook.router)
 app.include_router(scanner.router)
+app.include_router(analytics.router)

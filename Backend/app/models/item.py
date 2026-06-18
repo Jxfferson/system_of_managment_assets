@@ -9,5 +9,12 @@ class Item(Base):
     name = Column(String(255), nullable=False, unique=True, index=True)
     prefix = Column(String(10), nullable=True)
     price_cop = Column(Float, default=10000.0)
+
+    # FOR ANALYTICS
+    category_type = Column(String(50), nullable=True)  
+    expected_lifespan_months = Column(Integer, nullable=True)  
+    acceptable_failure_rate = Column(Float, nullable=True)  
+
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

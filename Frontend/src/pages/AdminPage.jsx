@@ -14,6 +14,7 @@ import ChangePasswordModal from '@/components/admin/ChangePasswordModal';
 import ItemDetailPage from '@/components/item-detail/ItemDetailPage';
 import StatisticsPage from '@/components/statistics/StatisticsPage';
 import ItemStatisticsPage from '@/components/statistics/ItemStatisticsPage';
+import AnalyticsPage from '@/components/analytics/AnalyticsPage';
 import { verifyPassword } from '@/utils/passwordLocal';
 import { sanitizeString, sanitizeText, isSafeInput } from '@/utils/sanitize';
 import { getAssets, createAsset, updateAsset, deleteAsset, createAssetLotBulk } from '@/services/almacenService';
@@ -251,6 +252,8 @@ const AdminPage = () => {
       const urlParams = new URLSearchParams(location.search);
       const itemFromUrl = urlParams.get('item');
       if (itemFromUrl) { setActiveTab('itemStatistics'); } else { setActiveTab('statistics'); }
+    } else if (location.pathname === '/admin/analytics') {
+      setActiveTab('analytics');
     }
   }, [location.pathname, location.search]);
 
@@ -836,29 +839,30 @@ const handleConnectScannerFromModal = useCallback(async () => {
             />
           </div>
 
-          {/* 🔹 Contenido */}
-          {isItemDetail && currentItemName ? (
-            <ItemDetailPage assets={assets} itemName={currentItemName} onBack={() => navigate('/admin')} />
-          ) : activeTab === 'assets' ? (
-            <>
-              <AssetStats assets={assets} availableItems={Object.keys(itemPrefixMap)} onItemSelect={(itemName) => { if (itemName) { setActiveTab('itemStatistics'); navigate(`/admin/statistics?item=${encodeURIComponent(itemName)}`); } }} />
-              {showFilters && <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} />}
-              {loading && <div className="text-center text-slate-400 py-8">Loading data...</div>}
-              {showForm && (
-                <div ref={formContainerRef} className="scroll-mt-32 mb-6">
-                  <AssetForm editingAsset={editingAsset} setEditingAsset={setEditingAsset} onSave={handleSave} onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }} isEditing={!!editingAsset.id} nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null} availableItems={Object.keys(itemPrefixMap)} itemPrefixMap={itemPrefixMap} />
+            {isItemDetail && currentItemName ? (
+              <ItemDetailPage assets={assets} itemName={currentItemName} onBack={() => navigate('/admin')} />
+            ) : activeTab === 'assets' ? (
+              <>
+                <AssetStats assets={assets} availableItems={Object.keys(itemPrefixMap)} onItemSelect={(itemName) => { if (itemName) { setActiveTab('itemStatistics'); navigate(`/admin/statistics?item=${encodeURIComponent(itemName)}`); } }} />
+                {showFilters && <AssetFilters filters={filters} setFilters={setFilters} availableItems={Object.keys(itemPrefixMap)} />}
+                {loading && <div className="text-center text-slate-400 py-8">Loading data...</div>}
+                {showForm && (
+                  <div ref={formContainerRef} className="scroll-mt-32 mb-6">
+                    <AssetForm editingAsset={editingAsset} setEditingAsset={setEditingAsset} onSave={handleSave} onCancel={() => { setShowForm(false); setEditingAsset(initialAsset); }} isEditing={!!editingAsset.id} nextSerialNumber={!editingAsset.id ? getNextSerialNumberByItem(editingAsset.name) : null} availableItems={Object.keys(itemPrefixMap)} itemPrefixMap={itemPrefixMap} />
+                  </div>
+                )}
+                <AssetLotForm isOpen={showLotForm} onClose={() => { setShowLotForm(false); setLotData(initialLotData); }} lotData={lotData} setLotData={setLotData} onSave={handleSaveLot} nextSerialNumber={getNextSerialNumberByItem(lotData.item)} initialItems={Object.keys(itemPrefixMap)} initialPrefixMap={itemPrefixMap} onItemCreated={(name, prefix, price) => handleItemCreated(name, prefix, price)} />
+                <div className="overflow-x-auto -mx-3 sm:mx-0">
+                  <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} onRefresh={loadAssets} />
                 </div>
-              )}
-              <AssetLotForm isOpen={showLotForm} onClose={() => { setShowLotForm(false); setLotData(initialLotData); }} lotData={lotData} setLotData={setLotData} onSave={handleSaveLot} nextSerialNumber={getNextSerialNumberByItem(lotData.item)} initialItems={Object.keys(itemPrefixMap)} initialPrefixMap={itemPrefixMap} onItemCreated={(name, prefix, price) => handleItemCreated(name, prefix, price)} />
-              <div className="overflow-x-auto -mx-3 sm:mx-0">
-                <AssetTable assets={filteredAssets} onEdit={handleEdit} onDelete={handleDelete} onRefresh={loadAssets} />
-              </div>
-            </>
-          ) : activeTab === 'items' ? (
-            itemsLoading ? (<div className="text-center text-slate-400 py-8">Loading items...</div>) : (<ItemManager items={itemPrefixMap} onRefresh={refreshItems} />)
-          ) : activeTab === 'statistics' ? (<StatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />)
-          : activeTab === 'itemStatistics' ? (<ItemStatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />) : null}
-
+              </>
+            ) : activeTab === 'items' ? (
+              itemsLoading ? (<div className="text-center text-slate-400 py-8">Loading items...</div>) : (<ItemManager items={itemPrefixMap} onRefresh={refreshItems} />)
+            ) : activeTab === 'statistics' ? (<StatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />)
+            : activeTab === 'itemStatistics' ? (<ItemStatisticsPage assets={assets} availableItems={Object.keys(itemPrefixMap)} />)
+            : activeTab === 'analytics' ? (<AnalyticsPage />)
+            : null}
+            
           <ChangePasswordModal isOpen={showChangePasswordModal} onClose={() => setShowChangePasswordModal(false)} onSuccess={handlePasswordChangeSuccess} />
         </div>
       </div>

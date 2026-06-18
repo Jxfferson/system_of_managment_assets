@@ -1,11 +1,11 @@
 import React from 'react';
-import { Package, List, BarChart3, PieChart } from 'lucide-react';
+import { Package, List, BarChart3, PieChart, TrendingUp } from 'lucide-react';
 
 export const AdminHeader = ({ activeTab, onTabChange, showItemStats = false }) => {
   return (
     <div className="flex flex-col items-start gap-2">
       <h1 className="text-3xl font-bold text-white">Asset Management</h1>
-      <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/10">
+      <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/10 flex-wrap gap-1">
         <button
           onClick={() => onTabChange('assets')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -29,6 +29,14 @@ export const AdminHeader = ({ activeTab, onTabChange, showItemStats = false }) =
           }`}
         >
           <BarChart3 className="w-4 h-4" /> Statistics
+        </button>
+        <button
+          onClick={() => onTabChange('analytics')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'analytics' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" /> Analytics
         </button>
         
         {showItemStats && (
