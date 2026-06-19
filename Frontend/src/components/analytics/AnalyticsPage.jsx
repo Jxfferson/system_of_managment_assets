@@ -5,6 +5,9 @@ import API_URL from '@/services/api.config';
 import AnalyticsSummary from './AnalyticsSummary';
 import CategoryComparison from './CategoryComparison';
 import RecommendationsList from './RecommendationsList';
+import AllCategoriesView from './AllCategoriesView';
+import { exportAnalyticsToExcel } from '@/utils/exportAnalytics';
+import { Download } from 'lucide-react';
 
 const AnalyticsPage = () => {
   const navigate = useNavigate();
@@ -12,17 +15,16 @@ const AnalyticsPage = () => {
   const [summary, setSummary] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [categoryData, setCategoryData] = useState(null);
+  const [allItems, setAllItems] = useState([]);
+  const [categories, setCategories] = useState({});
 
   useEffect(() => {
     loadAnalyticsData();
   }, []);
 
   useEffect(() => {
-    if (selectedCategory !== 'all') {
-      loadCategoryData(selectedCategory);
-    } else {
-      setCategoryData(null);
+    if (selectedCategory === 'all') {
+      loadAllCategoriesData();
     }
   }, [selectedCategory]);
 
@@ -44,20 +46,62 @@ const AnalyticsPage = () => {
     }
   };
 
-  const loadCategoryData = async (category) => {
+  const loadAllCategoriesData = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/analytics/category/${category}`);
-      if (res.ok) setCategoryData(await res.json());
+      const categoryTypes = ['cable', 'peripheral', 'accessory'];
+      const results = {};
+      const allItemsList = [];
+
+      for (const category of categoryTypes) {
+        try {
+          const res = await fetch(`${API_URL}/api/analytics/category/${category}`);
+          if (res.ok) {
+            const data = await res.json();
+            results[category] = data;
+            allItemsList.push(...data.items);
+          }
+        } catch (err) {
+          console.error(`Error loading ${category}:`, err);
+        }
+      }
+
+      setCategories(results);
+      setAllItems(allItemsList);
     } catch (err) {
-      console.error('Error loading category data:', err);
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const exportData = {
+        summary,
+        recommendations,
+        allItems,
+        categories
+      };
+      
+      exportAnalyticsToExcel(exportData, 'inventory-analytics');
+      
+      toast({ 
+        title: "Export successful", 
+        description: "Analytics report downloaded as Excel file" 
+      });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({ 
+        title: "Export failed", 
+        description: "Could not export analytics data", 
+        variant: "destructive" 
+      });
     }
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-3" />
-        <p className="text-slate-400 text-sm">Loading analytics...</p>
+        <div className="w-10 h-10 border-4 border-white/10 border-t-white/60 rounded-full animate-spin mb-3" />
+        <p className="text-white/50 text-sm">Loading analytics...</p>
       </div>
     );
   }
@@ -67,15 +111,19 @@ const AnalyticsPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">📊 Asset Analytics</h2>
-          <p className="text-sm text-slate-400 mt-1">Performance metrics and recommendations</p>
+          <h2 className="text-2xl font-bold text-white">Asset Analytics</h2>
+          <p className="text-sm text-white/50 mt-1">Performance metrics and recommendations</p>
         </div>
-        <button
-          onClick={() => navigate('/admin')}
-          className="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
-        >
-          ← Back to Assets
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg transition-colors text-sm font-medium"
+            title="Export to Excel"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -83,11 +131,11 @@ const AnalyticsPage = () => {
 
       {/* Category Filter */}
       <div className="flex items-center gap-2">
-        <p className="text-sm text-slate-400">Category:</p>
+        <p className="text-sm text-white/50">Category:</p>
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
+          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/90 focus:border-white/20 focus:outline-none"
         >
           <option value="all">All Categories</option>
           <option value="cable">Cables</option>
@@ -96,8 +144,12 @@ const AnalyticsPage = () => {
         </select>
       </div>
 
-      {/* Category Comparison */}
-      <CategoryComparison category={selectedCategory} data={categoryData} />
+      {/* Content based on selection */}
+      {selectedCategory === 'all' ? (
+        <AllCategoriesView />
+      ) : (
+        <CategoryComparison category={selectedCategory} />
+      )}
 
       {/* Recommendations */}
       <RecommendationsList recommendations={recommendations} />

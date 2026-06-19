@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { escapeHtml } from '@/utils/sanitize';
-import StationDetailModal from './StationDetailModal';
+import StationDetailModal from '../station/StationDetailModal';
 
 const ITEMS_PER_PAGE = 50;
 

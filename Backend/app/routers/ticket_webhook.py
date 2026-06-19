@@ -75,6 +75,19 @@ async def ticket_approved(
         for a in todos_en_estacion:
             logger.info(f"   - ID:{a.ID} | Item:'{a.Item}' | Serial:{a.Serial} | Fecha_Salida:{a.Fecha_Salida} | Monitor:{a.Monitor_Location}")
 
+        # ANTES DE HACER EL CAMBIO: Capturar el activo ACTUAL en la estación
+        # Este será el previous_asset (lo que estaba antes del cambio)
+        activo_actual_en_estacion = db.query(Almacen).filter(
+            Almacen.Destino == request.deskLocation.strip(),
+            Almacen.Fecha_Salida.isnot(None),
+            Almacen.Item.ilike(f"%{request.assetItem.strip()}%")
+        ).first()
+        
+        prev_serial = activo_actual_en_estacion.Serial if activo_actual_en_estacion else None
+        prev_name = activo_actual_en_estacion.Item if activo_actual_en_estacion else None
+        
+        logger.info(f"Previous asset captured: {prev_serial} ({prev_name})")
+
         query = db.query(Almacen).filter(
             Almacen.Item.ilike(f"%{request.assetItem.strip()}%"),
             Almacen.Destino == request.deskLocation.strip(),
@@ -127,22 +140,15 @@ async def ticket_approved(
         db.commit()
         db.refresh(activo_retornado)
 
-        try:
-            prev_record = db.query(Almacen).filter(
-                Almacen.Destino == request.deskLocation,
-                Almacen.Item.ilike(f"%{request.assetItem.strip()}%"),
-                Almacen.Fecha_Salida.isnot(None)
-            ).order_by(Almacen.Fecha_Salida.desc()).first()
-            
-            prev_serial = prev_record.Serial if prev_record else None
-            prev_name = prev_record.Item if prev_record else None
+        # Determinar el tipo de cambio
+        change_type = ChangeType.ASSIGNED
+        if request.assetCondition == 'Damage':
+            change_type = ChangeType.MOVED_TO
+        elif request.assetCondition == 'Missing':
+            change_type = ChangeType.UNASSIGNED
 
-            change_type = ChangeType.ASSIGNED
-            if request.assetCondition == 'Damage':
-                change_type = ChangeType.MOVED_TO
-            elif request.assetCondition == 'Missing':
-                change_type = ChangeType.UNASSIGNED
-            
+        # Crear el registro de historial con trazabilidad correcta
+        try:
             db.add(StationChangeHistory(
                 station_code=request.deskLocation,
                 asset_serial=activo_retornado.Serial,
@@ -157,6 +163,9 @@ async def ticket_approved(
             ))
             db.commit()
             print(f"Station history logged: {request.deskLocation} - {activo_retornado.Serial}")
+            print(f"   Previous: {prev_serial} ({prev_name})")
+            print(f"   Current: {activo_retornado.Serial} ({activo_retornado.Item})")
+            print(f"   Type: {change_type}")
             print(f"   Reviewed by: {request.reviewedBy}, Approved by: {request.approvedBy}")
             print(f"   Condition: {request.assetCondition}")
         except Exception as e:

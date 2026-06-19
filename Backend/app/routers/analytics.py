@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text, case, and_, or_
-from typing import List, Optional
+from sqlalchemy import func, text
+from typing import List
 from datetime import datetime, timedelta
 
 from app.config.database import get_db
@@ -17,8 +17,6 @@ from app.schemas.analytics import (
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 
-# === ENDPOINTS ===
-
 @router.get("/item/{item_name}", response_model=ItemEfficiency)
 def get_item_efficiency(item_name: str, db: Session = Depends(get_db)):
     """Calculate efficiency metrics for a specific item"""
@@ -29,14 +27,26 @@ def get_item_efficiency(item_name: str, db: Session = Depends(get_db)):
     stats = db.execute(
         text("""
             SELECT 
-                COUNT(*) as total_outputs,
-                SUM(CASE WHEN Fecha_Salida IS NOT NULL AND Tipo_Retorno IS NULL THEN 1 ELSE 0 END) as successful_outputs,
-                SUM(CASE WHEN Tipo_Retorno IN ('Damage', 'Missing') THEN 1 ELSE 0 END) as failure_count,
+                COUNT(CASE WHEN Fecha_Salida IS NOT NULL THEN 1 END) as total_assigned,
+                COUNT(CASE 
+                    WHEN Destino IS NULL 
+                         AND Fecha_Salida IS NULL 
+                         AND Tipo_Retorno IS NULL 
+                    THEN 1 
+                END) as voluntary_returns,
+                COUNT(CASE 
+                    WHEN Tipo_Retorno IN ('Damage', 'Missing') 
+                    THEN 1 
+                END) as failure_count,
                 AVG(
                     CASE 
-                        WHEN Fecha_Salida IS NOT NULL AND Fecha_Ingreso IS NOT NULL 
-                        THEN DATEDIFF(Fecha_Salida, Fecha_Ingreso) / 30.0 
-                        ELSE NULL 
+                        WHEN Tipo_Retorno IN ('Damage', 'Missing')
+                             AND Fecha_Ingreso IS NOT NULL
+                        THEN DATEDIFF(
+                            COALESCE(Fecha_Salida, CURDATE()), 
+                            Fecha_Ingreso
+                        ) / 30.0
+                        ELSE NULL
                     END
                 ) as avg_lifespan_months
             FROM ALMACEN
@@ -45,54 +55,62 @@ def get_item_efficiency(item_name: str, db: Session = Depends(get_db)):
         {"item_name": item_name}
     ).fetchone()
     
-    total_outputs = stats.total_outputs or 0
-    successful_outputs = stats.successful_outputs or 0
-    failure_count = stats.failure_count or 0
-    avg_lifespan = stats.avg_lifespan_months or 0
+    total_assigned = float(stats.total_assigned or 0)
+    voluntary_returns = float(stats.voluntary_returns or 0)
+    failure_count = float(stats.failure_count or 0)
+    avg_lifespan = float(stats.avg_lifespan_months or 0)
     
-    failure_rate = (failure_count / total_outputs * 100) if total_outputs > 0 else 0
-    cost_per_use = item.price_cop / successful_outputs if successful_outputs > 0 else item.price_cop
+    price_cop = float(item.price_cop or 0)
+    expected_lifespan = float(item.expected_lifespan_months or 24)
+    acceptable_failure = float(item.acceptable_failure_rate or 10.0)
     
-    expected_lifespan = item.expected_lifespan_months or 24
-    lifespan_deviation = ((avg_lifespan - expected_lifespan) / expected_lifespan * 100) if expected_lifespan > 0 else 0
+    failure_rate = (failure_count / total_assigned * 100) if total_assigned > 0 else 0.0
+    cost_per_use = price_cop / voluntary_returns if voluntary_returns > 0 else price_cop
     
-    acceptable_failure = item.acceptable_failure_rate or 10.0
-    if failure_rate <= acceptable_failure and avg_lifespan >= expected_lifespan * 0.8:
+    lifespan_deviation = ((avg_lifespan - expected_lifespan) / expected_lifespan * 100) if expected_lifespan > 0 else 0.0
+    
+    # Rating - SOLO si hay retornos reales (Damage/Missing)
+    # Si no hay NINGÚN retorno (ni voluntario ni por falla), es "New"
+    total_returns = voluntary_returns + failure_count
+    
+    if total_returns == 0:
+        # No hay ningún retorno registrado
+        performance_rating = "New"
+        recommendation = "Insufficient data - No returns recorded yet"
+    elif failure_count == 0 and voluntary_returns > 0:
+        # Solo retornos voluntarios, sin fallas
         performance_rating = "Excellent"
+        recommendation = f"Continue purchasing - Excellent performance with {failure_rate:.1f}% failure rate"
+    elif failure_rate <= acceptable_failure and avg_lifespan >= expected_lifespan * 0.8:
+        performance_rating = "Excellent"
+        recommendation = f"Continue purchasing - Excellent performance with {failure_rate:.1f}% failure rate"
     elif failure_rate <= acceptable_failure * 1.5 and avg_lifespan >= expected_lifespan * 0.6:
         performance_rating = "Good"
+        recommendation = f"Acceptable performance - Monitor for improvements"
     elif failure_rate <= acceptable_failure * 2:
         performance_rating = "Fair"
+        recommendation = f"Consider alternative suppliers - {failure_rate:.1f}% failure rate exceeds acceptable {acceptable_failure:.1f}%"
     else:
         performance_rating = "Poor"
-    
-    if performance_rating == "Excellent":
-        recommendation = f"Continue purchasing - Excellent performance with {failure_rate:.1f}% failure rate"
-    elif performance_rating == "Good":
-        recommendation = f"Acceptable performance - Monitor for improvements"
-    elif performance_rating == "Fair":
-        recommendation = f"Consider alternative suppliers - {failure_rate:.1f}% failure rate exceeds acceptable {acceptable_failure}%"
-    else:
         recommendation = f"Replace product immediately - {failure_rate:.1f}% failure rate is critically high"
     
     return ItemEfficiency(
         item_name=item_name,
         category_type=item.category_type,
         prefix=item.prefix,
-        price_cop=item.price_cop,
-        total_outputs=total_outputs,
-        successful_outputs=successful_outputs,
-        failure_count=failure_count,
+        price_cop=price_cop,
+        total_outputs=int(total_assigned),
+        successful_outputs=int(voluntary_returns),
+        failure_count=int(failure_count),
         failure_rate=round(failure_rate, 2),
         avg_lifespan_months=round(avg_lifespan, 2),
-        expected_lifespan_months=expected_lifespan,
+        expected_lifespan_months=int(expected_lifespan),
         lifespan_deviation=round(lifespan_deviation, 2),
         cost_per_use=round(cost_per_use, 2),
         acceptable_failure_rate=acceptable_failure,
         performance_rating=performance_rating,
         recommendation=recommendation
     )
-
 
 @router.get("/category/{category_type}", response_model=CategoryComparison)
 def compare_items_by_category(category_type: str, db: Session = Depends(get_db)):
@@ -107,14 +125,22 @@ def compare_items_by_category(category_type: str, db: Session = Depends(get_db))
         try:
             efficiency = get_item_efficiency(item.name, db)
             items_efficiency.append(efficiency)
-        except:
+        except Exception as e:
+            print(f"Error processing {item.name}: {e}")
             continue
     
     if not items_efficiency:
         raise HTTPException(status_code=404, detail="No efficiency data available")
     
-    best = min(items_efficiency, key=lambda x: x.failure_rate)
-    worst = max(items_efficiency, key=lambda x: x.failure_rate)
+    # Filtrar solo items con datos reales para best/worst
+    items_with_data = [i for i in items_efficiency if i.performance_rating != "New"]
+    
+    if items_with_data:
+        best = min(items_with_data, key=lambda x: x.failure_rate)
+        worst = max(items_with_data, key=lambda x: x.failure_rate)
+    else:
+        best = items_efficiency[0]
+        worst = items_efficiency[0]
     
     avg_failure = sum(i.failure_rate for i in items_efficiency) / len(items_efficiency)
     avg_lifespan = sum(i.avg_lifespan_months for i in items_efficiency) / len(items_efficiency)
@@ -131,7 +157,7 @@ def compare_items_by_category(category_type: str, db: Session = Depends(get_db))
 
 @router.get("/recommendations", response_model=List[AnalyticsRecommendation])
 def get_recommendations(db: Session = Depends(get_db)):
-    """Generate automated recommendations based on performance data"""
+    """Generate clear, actionable purchase recommendations"""
     items = db.query(Item).all()
     recommendations = []
     
@@ -139,47 +165,67 @@ def get_recommendations(db: Session = Depends(get_db)):
         try:
             efficiency = get_item_efficiency(item.name, db)
             
-            if efficiency.total_outputs == 0:
+            # Skip items with rating "New" (no returns at all)
+            if efficiency.performance_rating == "New":
                 continue
+            
+            # Skip items with no actual failure data (lifespan = 0)
+            if efficiency.avg_lifespan_months == 0 and efficiency.failure_count == 0:
+                continue
+            
+            cost_per_use = efficiency.cost_per_use
+            price = float(item.price_cop)
+            
+            is_viable = cost_per_use <= price * 0.5
             
             if efficiency.failure_rate > efficiency.acceptable_failure_rate * 2:
                 recommendations.append(AnalyticsRecommendation(
                     item_name=item.name,
                     current_performance=f"{efficiency.failure_rate:.1f}% failure rate, {efficiency.avg_lifespan_months:.1f} months lifespan",
                     expected_performance=f"<{efficiency.acceptable_failure_rate}% failure rate, {efficiency.expected_lifespan_months} months lifespan",
-                    issue="Critically high failure rate",
-                    recommendation="Immediate replacement recommended - Consider alternative product or supplier",
+                    issue=f"CRITICAL: {efficiency.failure_rate:.1f}% failure rate is {efficiency.failure_rate/efficiency.acceptable_failure_rate:.1f}x higher than acceptable",
+                    recommendation=f"STOP PURCHASING - This product has critically high failure rate. Find alternative supplier or product immediately. Current cost per use: ${cost_per_use:,.0f}",
                     priority="High"
                 ))
             elif efficiency.failure_rate > efficiency.acceptable_failure_rate * 1.5:
                 recommendations.append(AnalyticsRecommendation(
                     item_name=item.name,
-                    current_performance=f"{efficiency.failure_rate:.1f}% failure rate",
-                    expected_performance=f"<{efficiency.acceptable_failure_rate}% failure rate",
-                    issue="High failure rate",
-                    recommendation="Consider changing supplier or product model",
-                    priority="Medium"
+                    current_performance=f"{efficiency.failure_rate:.1f}% failure rate, {efficiency.avg_lifespan_months:.1f} months lifespan",
+                    expected_performance=f"<{efficiency.acceptable_failure_rate}% failure rate, {efficiency.expected_lifespan_months} months lifespan",
+                    issue=f"HIGH RISK: Failure rate {efficiency.failure_rate/efficiency.acceptable_failure_rate:.1f}x above acceptable threshold",
+                    recommendation=f"CONSIDER REPLACING - High failure rate makes this product unreliable. Look for better alternatives. Cost per use: ${cost_per_use:,.0f}",
+                    priority="High"
                 ))
-            elif efficiency.lifespan_deviation < -30:
+            elif efficiency.lifespan_deviation < -50 and efficiency.avg_lifespan_months > 0:
                 recommendations.append(AnalyticsRecommendation(
                     item_name=item.name,
-                    current_performance=f"{efficiency.avg_lifespan_months:.1f} months lifespan",
+                    current_performance=f"{efficiency.avg_lifespan_months:.1f} months lifespan (only {100+efficiency.lifespan_deviation:.0f}% of expected)",
                     expected_performance=f"{efficiency.expected_lifespan_months} months lifespan",
-                    issue=f"Lifespan {abs(efficiency.lifespan_deviation):.0f}% below expected",
-                    recommendation="Evaluate product quality - May need to upgrade to higher quality option",
+                    issue=f"SHORT LIFESPAN: Product lasts only {100+efficiency.lifespan_deviation:.0f}% of expected duration",
+                    recommendation=f"NOT VIABLE - Product lifespan is too short. You are replacing it too often. Cost per use: ${cost_per_use:,.0f}. Consider higher quality alternative.",
                     priority="Medium"
                 ))
-            elif efficiency.cost_per_use > item.price_cop * 0.5:
+            elif efficiency.lifespan_deviation < -30 and efficiency.avg_lifespan_months > 0:
                 recommendations.append(AnalyticsRecommendation(
                     item_name=item.name,
-                    current_performance=f"${efficiency.cost_per_use:,.0f} cost per use",
-                    expected_performance=f"<${item.price_cop * 0.3:,.0f} cost per use",
-                    issue="High cost per use due to frequent replacements",
-                    recommendation="Consider bulk purchasing or higher quality alternative",
+                    current_performance=f"{efficiency.avg_lifespan_months:.1f} months lifespan ({100+efficiency.lifespan_deviation:.0f}% of expected)",
+                    expected_performance=f"{efficiency.expected_lifespan_months} months lifespan",
+                    issue=f"BELOW EXPECTED: Lifespan is {abs(efficiency.lifespan_deviation):.0f}% shorter than expected",
+                    recommendation=f"REVIEW PURCHASE DECISION - Product does not last as long as expected. Current cost per use: ${cost_per_use:,.0f}. Monitor closely before next purchase.",
+                    priority="Medium"
+                ))
+            elif not is_viable and efficiency.successful_outputs > 0:
+                recommendations.append(AnalyticsRecommendation(
+                    item_name=item.name,
+                    current_performance=f"${cost_per_use:,.0f} cost per use ({cost_per_use/price*100:.0f}% of purchase price)",
+                    expected_performance=f"<${price*0.3:,.0f} cost per use",
+                    issue=f"NOT ECONOMICALLY VIABLE - Cost per use is {cost_per_use/price*100:.0f}% of purchase price",
+                    recommendation=f"NOT WORTH IT - You are spending too much per use. Either negotiate better price or find cheaper alternative. Current: ${cost_per_use:,.0f}/use vs Price: ${price:,.0f}",
                     priority="Low"
                 ))
                 
         except Exception as e:
+            print(f"Error processing recommendations for {item.name}: {e}")
             continue
     
     priority_order = {"High": 0, "Medium": 1, "Low": 2}
@@ -191,13 +237,10 @@ def get_recommendations(db: Session = Depends(get_db)):
 @router.get("/summary", response_model=AnalyticsSummary)
 def get_analytics_summary(db: Session = Depends(get_db)):
     """Get overall analytics summary"""
-    # Total items
     total_items = db.query(Item).count()
     
-    # Items with data (usando JOIN explícito)
     items_with_data = db.query(func.count(func.distinct(Almacen.Item))).scalar()
     
-    # Overall failure rate
     overall_stats = db.execute(
         text("""
             SELECT 
@@ -210,16 +253,21 @@ def get_analytics_summary(db: Session = Depends(get_db)):
     
     overall_failure_rate = (overall_stats.failures / overall_stats.total * 100) if overall_stats.total > 0 else 0
     
-    # Average lifespan across all items
     avg_lifespan = db.execute(
         text("""
-            SELECT AVG(DATEDIFF(Fecha_Salida, Fecha_Ingreso) / 30.0)
+            SELECT AVG(
+                CASE 
+                    WHEN Tipo_Retorno IN ('Damage', 'Missing')
+                         AND Fecha_Ingreso IS NOT NULL
+                    THEN DATEDIFF(COALESCE(Fecha_Salida, CURDATE()), Fecha_Ingreso) / 30.0
+                    ELSE NULL
+                END
+            )
             FROM ALMACEN
             WHERE Fecha_Salida IS NOT NULL AND Fecha_Ingreso IS NOT NULL
         """)
     ).scalar() or 0
     
-    # Top performing category
     category_stats = db.execute(
         text("""
             SELECT 
@@ -244,7 +292,6 @@ def get_analytics_summary(db: Session = Depends(get_db)):
         total_movements=overall_stats.total if overall_stats else 0
     )
 
-# === SIMULATION ENDPOINTS ===
 
 @router.post("/simulate-outputs/{item_name}")
 def simulate_outputs(item_name: str, count: int = 10, db: Session = Depends(get_db)):
