@@ -1,76 +1,92 @@
-# Backend - Sistema de Gestión de Activos (FastAPI)
+# ⚙️ Backend - Sistema de Gestión de Activos (FastAPI)
 
-## Estructura de carpetas
+API REST robusta y de alto rendimiento desarrollada en **FastAPI** para la gestión integral del inventario de activos de la empresa. Se conecta a una base de datos **MariaDB** mediante **SQLAlchemy** y proporciona los datos necesarios para el dashboard de analítica, la gestión de estaciones y la sincronización con el sistema de tickets.
 
-```
-Backend/
-├── app/
-│   ├── config/
-│   │   ├── __init__.py
-│   │   └── database.py         ← Conexión a MariaDB con SQLAlchemy
-│   ├── models/
-│   │   ├── __init__.py
-│   │   └── almacen.py          ← Modelo de la tabla ALMACEN
-│   ├── schemas/
-│   │   ├── __init__.py
-│   │   └── almacen.py          ← Validación de datos con Pydantic
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   └── almacen.py          ← Endpoints CRUD
-│   ├── middlewares/
-│   │   └── __init__.py
-│   ├── __init__.py
-│   └── main.py                 ← Punto de entrada FastAPI
-├── .env                       
-├── .env.example
-├── .gitignore
-└── requirements.txt
-```
+## 🚀 Características Principales
 
-## Configuración
+- **Gestión de Inventario (Almacén):** CRUD completo de items y activos, con soporte para búsqueda avanzada y registro por lotes.
+- **Historial de Estaciones:** Trazabilidad de los movimientos y cambios de ubicación de los activos (`station_change_history`).
+- **Analítica y Rendimiento:** Endpoints dedicados a alimentar los gráficos del frontend (entradas/salidas, rendimiento por categoría, tipos de retorno).
+- **Sincronización con Tickets:** Webhook seguro para recibir actualizaciones de estado desde el sistema de tickets de soporte externo.
+- **Validación de Escaneo:** Endpoint para procesar y validar la lectura de códigos de activos desde el módulo de escáner del frontend.
+- **Generación de Documentación:** Scripts automatizados en Python para generar manuales de usuario y documentos de seguridad en formato `.docx`.
 
-Edita el archivo `.env`:
+---
 
-```env
-PORT=8000
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=tu_contraseña
-DB_NAME=InventarioColombiaIT
-```
+## 📁 Estructura de Carpetas
 
-## Iniciar el servidor
+  Backend/
+  ├── app/
+  │   ├── config/
+  │   │   ├── __init__.py
+  │   │   └── database.py         ← Conexión a MariaDB con SQLAlchemy
+  │   ├── models/
+  │   │   ├── __init__.py
+  │   │   ├── almacen.py          ← Modelo principal de la tabla ALMACEN
+  │   │   ├── item.py             ← Modelo para gestión detallada de items
+  │   │   └── station_change_history.py ← Historial de movimientos de estaciones
+  │   ├── schemas/
+  │   │   ├── __init__.py
+  │   │   ├── almacen.py          ← Validación de datos de entrada/salida (Pydantic)
+  │   │   └── analytics.py        ← Esquemas para respuestas de analítica
+  │   ├── routers/
+  │   │   ├── __init__.py
+  │   │   ├── almacen.py          ← Endpoints CRUD principales
+  │   │   ├── analytics.py        ← Endpoints para gráficos y estadísticas
+  │   │   ├── scanner.py          ← Endpoint para validación de escaneos
+  │   │   └── ticket_webhook.py   ← Endpoint para recibir actualizaciones de tickets
+  │   ├── middlewares/
+  │   │   └── __init__.py         ← Middlewares de seguridad y CORS
+  │   ├── __init__.py
+  │   └── main.py                 ← Punto de entrada de la aplicación FastAPI
+  ├── .env                        ← Variables de entorno (NO subir a git)
+  ├── .env.example                ← Plantilla de variables de entorno
+  ├── .gitignore
+  ├── requirements.txt            ← Dependencias de Python
+  ├── sync_docx.py                ← Script para generar manual de sincronización
+  └── python_security_doc.py      ← Script para generar documento de seguridad
 
-```bash
-uvicorn app.main:app --reload --port 8000
-```
+## ⚙️ Configuración
+** 1. Crea un entorno virtual e instala las dependencias: **
 
-## Documentación automática
+   python -m venv venv
+   source venv/bin/activate  # En Windows: venv\Scripts\activate
+   pip install -r requirements.txt
 
-FastAPI genera docs automáticamente:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc:       http://localhost:8000/redoc
+** 2. Crea el archivo .env basado en el ejemplo y configura tus credenciales: **
+   PORT=8000
+  DB_HOST=localhost
+  DB_PORT=3306
+  DB_USER=root
+  DB_PASSWORD=tu_contraseña
+  DB_NAME=InventarioColombiaIT
+** 3.Asegúrate de que la base de datos InventarioColombiaIT esté creada en MariaDB antes de iniciar. **
 
-## Endpoints disponibles
+▶️ Iniciar el Servidor
 
-| Método | Ruta                           | Descripción             |
-|--------|--------------------------------|-------------------------|
-| GET    | /api/almacen                   | Obtener todos los items |
-| GET    | /api/almacen?search=cable      | Buscar items            |
-| GET    | /api/almacen/{id}              | Obtener item por ID     |
-| POST   | /api/almacen                   | Crear nuevo item        |
-| PUT    | /api/almacen/{id}              | Actualizar item         |
-| DELETE | /api/almacen/{id}              | Eliminar item           |
+Ejecuta el servidor de desarrollo con recarga automática:
 
-## Ejemplo POST
+  ** uvicorn app.main:app --reload --port 8000 **
 
-```json
-{
-  "Item": "Cable Display Port a VGA 1.8",
-  "Serial": "DPVG001",
-  "Fecha_Ingreso": "2025-12-16",
-  "Fecha_Salida": null,
-  "Destino": null
-}
-```
+## 📚 Documentación Automática de la API
+  FastAPI genera documentación interactiva automáticamente basada en los schemas y routers:
+  Swagger UI: http://localhost:8000/docs
+  ReDoc: http://localhost:8000/redoc
+  
+## 🔌 Endpoints Disponibles
+## 📦 Almacén e Inventario (/api/almacen)
+
+
+
+📝 Ejemplo de Solicitud (POST)
+Crear un nuevo item en el almacén:
+http
+123456789101112
+📄 Generación de Documentación
+El proyecto incluye scripts para mantener la documentación técnica actualizada automáticamente:
+Manual de Sincronización: Ejecuta python sync_docx.py para generar Sincronizacion_Tickets_Inventario_v1.0.docx.
+Documento de Seguridad: Ejecuta python python_security_doc.py para generar el reporte de políticas y seguridad del backend.
+🛡️ Seguridad y Buenas Prácticas
+Las contraseñas y credenciales de base de datos nunca deben subirse al repositorio (manejadas vía .env).
+Se utiliza Pydantic para validar estrictamente todos los datos de entrada, previniendo inyecciones y datos malformados.
+El middleware de CORS está configurado para aceptar solicitudes únicamente desde el dominio del frontend autorizado.
