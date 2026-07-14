@@ -73,19 +73,54 @@ Ejecuta el servidor de desarrollo con recarga automática:
   Swagger UI: http://localhost:8000/docs
   ReDoc: http://localhost:8000/redoc
   
-## 🔌 Endpoints Disponibles
+# 🔌 Endpoints Disponibles
+
 ## 📦 Almacén e Inventario (/api/almacen)
 
+**Método,Ruta,Descripción**
+GET,/api/almacen,Obtener todos los items (soporta paginación)
+GET,/api/almacen?search=cable,"Buscar items por nombre, serial o destino"
+GET,/api/almacen/{id},Obtener detalle de un item por su ID
+POST,/api/almacen,Crear un nuevo item o lote de items
+PUT,/api/almacen/{id},Actualizar información de un item
+DELETE,/api/almacen/{id},Eliminar o dar de baja un item
 
+## 📊 Analítica y Estadísticas (/api/analytics)
 
-📝 Ejemplo de Solicitud (POST)
+**Método,Ruta,Descripción**
+GET,/api/analytics/summary,"Resumen general de activos (totales, por estado)"
+GET,/api/analytics/entry-exit,Datos históricos de entradas y salidas por rango de fechas
+GET,/api/analytics/return-types,Distribución de tipos de retorno de activos
+GET,/api/analytics/performance,Métricas de rendimiento por categoría de item
+
+## 🔄 Estaciones e Historial (/api/stations)
+
+**Método,Ruta,Descripción**
+GET,/api/stations/{id}/history,"Obtener el historial de cambios de ubicación de una estación"
+
+## 📱 Escáner y Webhooks
+
+**Método,Ruta,Descripción**
+POST,/api/scanner/validate,Validar un código escaneado y devolver la info del activo
+POST,/api/webhooks/ticket,Recibir actualizaciones de estado desde el sistema de tickets
+
+## 📝 Ejemplo de Solicitud (POST)
 Crear un nuevo item en el almacén:
-http
-123456789101112
-📄 Generación de Documentación
-El proyecto incluye scripts para mantener la documentación técnica actualizada automáticamente:
-Manual de Sincronización: Ejecuta python sync_docx.py para generar Sincronizacion_Tickets_Inventario_v1.0.docx.
-Documento de Seguridad: Ejecuta python python_security_doc.py para generar el reporte de políticas y seguridad del backend.
+
+POST /api/almacen
+Content-Type: application/json
+
+{
+  "Item": "Cable Display Port a VGA 1.8m",
+  "Serial": "DPVG001",
+  "Fecha_Ingreso": "2025-12-16",
+  "Fecha_Salida": null,
+  "Destino": null,
+  "Categoria": "Periféricos",
+  "Estado": "Disponible"
+}
+
+
 🛡️ Seguridad y Buenas Prácticas
 Las contraseñas y credenciales de base de datos nunca deben subirse al repositorio (manejadas vía .env).
 Se utiliza Pydantic para validar estrictamente todos los datos de entrada, previniendo inyecciones y datos malformados.
